@@ -34,13 +34,6 @@ export type GenerationFormState = {
   usage: UsageState | null;
 };
 
-export const initialGenerationFormState: GenerationFormState = {
-  success: false,
-  error: null,
-  data: null,
-  usage: null
-};
-
 const urlSchema = z
   .string({ required_error: "Enter a URL first." })
   .trim()
@@ -246,4 +239,4 @@ export async function generateContentAction(
       }
     };
   }
-}
+            }
