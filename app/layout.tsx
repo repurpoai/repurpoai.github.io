@@ -9,8 +9,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "User-First AI Content Repurposer",
-    template: "%s | User-First AI Content Repurposer"
+    default: "Repurpo",
+    template: "%s | Repurpo"
   },
   description:
     "Turn one source into a LinkedIn post, X thread, and newsletter with plan-aware SaaS limits and saved history."
