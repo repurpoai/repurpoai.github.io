@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -94,6 +93,7 @@ export function DashboardGenerator({
   const [text, setText] = useState("");
 
   const [imagePrompt, setImagePrompt] = useState("");
+  const [imageAspectRatio, setImageAspectRatio] = useState<"1:1" | "3:4" | "4:3" | "9:16" | "16:9">("1:1");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -148,54 +148,66 @@ export function DashboardGenerator({
     const compactSeed = seed.replace(/\s+/g, " ").trim().slice(0, 260);
 
     setImagePrompt(
-      `Create a clean modern social media visual inspired by "${state.data.sourceTitle}". Tone: ${state.data.tone}. Style: premium editorial, no watermarks, no visible UI. Context: ${compactSeed}`
+      `Create a clean modern social media visual inspired by "${state.data.sourceTitle}". Tone: ${state.data.tone}. Style: premium editorial, sharp composition, no watermarks, no visible UI. Context: ${compactSeed}`
     );
     setImageUrl(null);
     setImageError(null);
   }, [state.data]);
 
   async function handleGenerateImage() {
-    setImageError(null);
-    setImageUrl(null);
+    if (!imageUnlocked) {
+      setImageError("Image generation is available on Plus and Pro only.");
+      return;
+    }
 
     if (!imagePrompt.trim()) {
       setImageError("Enter an image prompt first.");
       return;
     }
 
-    if (!window.puter?.ai?.txt2img) {
-      setImageError("Image generation is not ready yet. Refresh once and try again.");
-      return;
-    }
-
     try {
       setImageLoading(true);
-      const result = await window.puter.ai.txt2img(imagePrompt.trim());
-      const src =
-        result instanceof HTMLImageElement
-          ? result.src
-          : typeof result?.src === "string"
-          ? result.src
-          : null;
+      setImageError(null);
+      setImageUrl(null);
 
-      if (!src) {
-        throw new Error("No usable image came back.");
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          prompt: imagePrompt,
+          aspectRatio: imageAspectRatio
+        })
+      });
+
+      const result = (await response.json()) as {
+        imageDataUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Image generation failed.");
       }
 
-      setImageUrl(src);
+      if (!result.imageDataUrl) {
+        throw new Error("No image was returned.");
+      }
+
+      setImageUrl(result.imageDataUrl);
     } catch (error) {
-      setImageError(error instanceof Error ? error.message : "Image generation failed.");
+      setImageError(
+        error instanceof Error ? error.message : "Image generation failed."
+      );
     } finally {
       setImageLoading(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <Script src="https://js.puter.com/v2/" strategy="afterInteractive" />
-
+    <div className="space-y-4">
       <Card className="border-0 bg-gradient-to-br from-slate-950 to-slate-800 text-white shadow-soft">
-        <CardHeader className="space-y-4">
+        <CardHeader className="space-y-3">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-slate-200">
             <WandSparkles className="h-4 w-4" />
             Version 2 builder
@@ -203,18 +215,18 @@ export function DashboardGenerator({
           <div className="space-y-2">
             <CardTitle className="text-3xl text-white">Choose platforms first, then generate</CardTitle>
             <CardDescription className="max-w-3xl text-slate-300">
-              Link, text, or YouTube in. Multi-platform content out. Plus and Pro also unlock image generation.
+              Link, text, or YouTube in. Multi-platform content out. Plus and Pro also unlock in-app image generation.
             </CardDescription>
           </div>
         </CardHeader>
       </Card>
 
       <Card className="border-0 bg-white shadow-soft">
-        <CardHeader className="gap-4">
+        <CardHeader className="gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <CardTitle>Plan & usage</CardTitle>
-              <CardDescription>Limits are still enforced on the server.</CardDescription>
+              <CardDescription>Limits are enforced on the server.</CardDescription>
             </div>
 
             <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
@@ -263,18 +275,18 @@ export function DashboardGenerator({
       </Card>
 
       <Card className="border-0 bg-white shadow-soft">
-        <CardHeader className="gap-4">
+        <CardHeader className="gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle>Input mode</CardTitle>
               <CardDescription>Article, pasted text, or YouTube transcript.</CardDescription>
             </div>
 
-            <div className="inline-flex rounded-2xl bg-slate-100 p-1">
+            <div className="inline-flex rounded-xl bg-slate-100 p-1">
               <button
                 type="button"
                 onClick={() => setMode("link")}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "link"
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
@@ -285,7 +297,7 @@ export function DashboardGenerator({
               <button
                 type="button"
                 onClick={() => setMode("text")}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "text"
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
@@ -296,7 +308,7 @@ export function DashboardGenerator({
               <button
                 type="button"
                 onClick={() => setMode("youtube")}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "youtube"
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
@@ -308,8 +320,8 @@ export function DashboardGenerator({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <form action={formAction} className="space-y-6">
+        <CardContent className="space-y-5">
+          <form action={formAction} className="space-y-5">
             <input type="hidden" name="mode" value={mode} />
             <input type="hidden" name="tone" value={tone} />
             <input type="hidden" name="lengthPreset" value={lengthPreset} />
@@ -317,9 +329,7 @@ export function DashboardGenerator({
             <div className="space-y-3">
               <div>
                 <h3 className="text-sm font-medium text-slate-900">Select platforms</h3>
-                <p className="text-sm text-slate-500">
-                  Generate only the outputs you actually want.
-                </p>
+                <p className="text-sm text-slate-500">Generate only the outputs you want.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -330,7 +340,7 @@ export function DashboardGenerator({
                   return (
                     <label
                       key={platformKey}
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                         checked
                           ? "border-slate-900 bg-slate-900 text-white"
                           : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
@@ -378,7 +388,7 @@ export function DashboardGenerator({
                       type="button"
                       disabled={locked}
                       onClick={() => setTone(toneKey)}
-                      className={`rounded-2xl border p-4 text-left transition ${
+                      className={`rounded-xl border p-4 text-left transition ${
                         active
                           ? "border-slate-950 bg-slate-950 text-white"
                           : locked
@@ -420,7 +430,7 @@ export function DashboardGenerator({
                       key={presetKey}
                       type="button"
                       onClick={() => setLengthPreset(presetKey)}
-                      className={`rounded-2xl border p-4 text-left transition ${
+                      className={`rounded-xl border p-4 text-left transition ${
                         active
                           ? "border-slate-950 bg-slate-950 text-white"
                           : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
@@ -493,18 +503,18 @@ export function DashboardGenerator({
                   onChange={(event) => setText(event.target.value)}
                   disabled={pending}
                   required={mode === "text"}
-                  rows={14}
+                  rows={12}
                 />
               </div>
             )}
 
             {state.error ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {state.error}
               </div>
             ) : null}
 
-            <Button type="submit" size="lg" disabled={pending || atLimit}>
+            <Button type="submit" size="lg" disabled={pending || atLimit} className="h-12 px-6 text-base font-semibold">
               {pending ? (
                 <>
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -525,7 +535,7 @@ export function DashboardGenerator({
 
       {pending ? (
         <Card className="border-0 bg-white shadow-soft">
-          <CardContent className="flex items-center gap-3 py-8 text-slate-700">
+          <CardContent className="flex items-center gap-3 py-6 text-slate-700">
             <LoaderCircle className="h-5 w-5 animate-spin" />
             Building your selected platform outputs...
           </CardContent>
@@ -533,9 +543,9 @@ export function DashboardGenerator({
       ) : null}
 
       {state.data ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Card className="border-0 bg-white shadow-soft">
-            <CardHeader className="gap-3">
+            <CardHeader className="gap-2">
               <CardTitle>Latest result</CardTitle>
               <CardDescription>
                 {state.data.inputMode} • {TONE_META[state.data.tone].label} • {LENGTH_META[state.data.lengthPreset].label}
@@ -593,10 +603,10 @@ export function DashboardGenerator({
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2">
                   <FileImage className="h-5 w-5" />
-                  Image generation
+                  Matching image
                 </CardTitle>
                 <CardDescription>
-                  Generate a matching visual with Puter.js.
+                  Generate a matching visual directly inside Repurpo.
                 </CardDescription>
               </div>
               {!imageUnlocked ? (
@@ -611,7 +621,7 @@ export function DashboardGenerator({
 
             <CardContent className="space-y-4">
               {!imageUnlocked ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
                   Image generation is locked on Free. Upgrade to Plus or Pro to enable it.
                 </div>
               ) : (
@@ -624,13 +634,35 @@ export function DashboardGenerator({
                       id="image-prompt"
                       value={imagePrompt}
                       onChange={(event) => setImagePrompt(event.target.value)}
-                      rows={5}
+                      rows={4}
                       placeholder="Describe the image you want..."
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <label htmlFor="image-ratio" className="text-sm font-medium text-slate-700">
+                      Aspect ratio
+                    </label>
+                    <select
+                      id="image-ratio"
+                      value={imageAspectRatio}
+                      onChange={(event) =>
+                        setImageAspectRatio(
+                          event.target.value as "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
+                        )
+                      }
+                      className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    >
+                      <option value="1:1">1:1</option>
+                      <option value="3:4">3:4</option>
+                      <option value="4:3">4:3</option>
+                      <option value="9:16">9:16</option>
+                      <option value="16:9">16:9</option>
+                    </select>
+                  </div>
+
                   {imageError ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {imageError}
                     </div>
                   ) : null}
@@ -650,11 +682,11 @@ export function DashboardGenerator({
                   </Button>
 
                   {imageUrl ? (
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <img
                         src={imageUrl}
                         alt="Generated visual"
-                        className="h-auto w-full rounded-xl"
+                        className="h-auto w-full rounded-lg"
                       />
                     </div>
                   ) : null}
@@ -666,4 +698,4 @@ export function DashboardGenerator({
       ) : null}
     </div>
   );
-} 
+}
