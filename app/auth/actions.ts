@@ -8,10 +8,6 @@ export type AuthActionState = {
   error: string | null;
 };
 
-export const initialAuthActionState: AuthActionState = {
-  error: null
-};
-
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(6, "Password must be at least 6 characters.")
@@ -27,82 +23,101 @@ export async function loginAction(
   _: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
-  const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password")
-  });
+  try {
+    const parsed = loginSchema.safeParse({
+      email: formData.get("email"),
+      password: formData.get("password")
+    });
 
-  if (!parsed.success) {
+    if (!parsed.success) {
+      return {
+        error: parsed.error.issues[0]?.message ?? "Invalid login details."
+      };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+
+    if (error) {
+      return {
+        error: error.message
+      };
+    }
+
+    redirect("/dashboard");
+  } catch (error) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Invalid login details."
+      error: error instanceof Error ? error.message : "Login failed."
     };
   }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-
-  if (error) {
-    return {
-      error: error.message
-    };
-  }
-
-  redirect("/dashboard");
 }
 
 export async function signupAction(
   _: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
-  const parsed = signupSchema.safeParse({
-    fullName:
-      typeof formData.get("fullName") === "string" && formData.get("fullName")?.toString().trim()
-        ? formData.get("fullName")
-        : undefined,
-    email: formData.get("email"),
-    password: formData.get("password")
-  });
-
-  if (!parsed.success) {
-    return {
-      error: parsed.error.issues[0]?.message ?? "Invalid signup details."
-    };
-  }
-
-  const { fullName, email, password } = parsed.data;
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName ?? null
-      }
-    }
-  });
-
-  if (error) {
-    return {
-      error: error.message
-    };
-  }
-
-  if (!data.session) {
-    const signInResult = await supabase.auth.signInWithPassword({
-      email,
-      password
+  try {
+    const parsed = signupSchema.safeParse({
+      fullName:
+        typeof formData.get("fullName") === "string" && formData.get("fullName")?.toString().trim()
+          ? formData.get("fullName")
+          : undefined,
+      email: formData.get("email"),
+      password: formData.get("password")
     });
 
-    if (signInResult.error) {
+    if (!parsed.success) {
       return {
-        error:
-          "Account created, but there is no active session yet. Disable Confirm Email in Supabase Auth > Providers > Email for instant dashboard access, or verify the email and then log in."
+        error: parsed.error.issues[0]?.message ?? "Invalid signup details."
       };
     }
-  }
 
-  redirect("/dashboard");
+    const { fullName, email, password } = parsed.data;
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName ?? null
+        }
+      }
+    });
+
+    if (error) {
+      return {
+        error: error.message
+      };
+    }
+
+    if (!data.user) {
+      return {
+        error: "Account could not be created."
+      };
+    }
+
+    if (!data.session) {
+      const signInResult = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInResult.error) {
+        return {
+          error:
+            "Account created, but automatic login did not complete. Try logging in manually."
+        };
+      }
+    }
+
+    redirect("/dashboard");
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Signup failed."
+    };
+  }
 }
 
 export async function logoutAction() {
