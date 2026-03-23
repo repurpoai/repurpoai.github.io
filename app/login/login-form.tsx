@@ -4,7 +4,11 @@ import { useActionState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { initialAuthActionState, loginAction } from "@/app/auth/actions";
+import { loginAction, type AuthActionState } from "@/app/auth/actions";
+
+const initialAuthActionState: AuthActionState = {
+  error: null
+};
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, initialAuthActionState);
