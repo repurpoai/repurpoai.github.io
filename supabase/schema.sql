@@ -14,7 +14,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   full_name text,
-  tier text not null default 'free' check (tier in ('free', 'pro')),
+  tier text not null default 'free' check (tier in ('free', 'plus', 'pro')),
   monthly_generation_limit integer check (
     monthly_generation_limit is null or monthly_generation_limit > 0
   ),
@@ -30,14 +30,18 @@ create table if not exists public.profiles (
 create table if not exists public.generations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  input_mode text not null check (input_mode in ('link', 'text')),
+  input_mode text not null check (input_mode in ('link', 'text', 'youtube')),
   tone text not null check (tone in ('professional', 'casual', 'viral', 'authority')),
+  length_preset text not null default 'medium' check (length_preset in ('short', 'medium', 'long')),
   source_url text,
   source_title text,
   source_text text not null,
-  linkedin_post text not null,
-  twitter_thread text not null,
-  newsletter text not null,
+  source_meta jsonb not null default '{}'::jsonb,
+  selected_platforms text[] not null default '{}'::text[],
+  outputs jsonb not null default '{}'::jsonb,
+  linkedin_post text not null default '',
+  twitter_thread text not null default '',
+  newsletter text not null default '',
   model_name text not null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())

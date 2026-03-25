@@ -17,17 +17,14 @@ const platformOutputSchema = z.object({
 
 export type PlatformOutputs = Partial<Record<ContentPlatform, string>>;
 
-const responseJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    linkedin: { type: "string" },
-    x: { type: "string" },
-    instagram: { type: "string" },
-    reddit: { type: "string" },
-    newsletter: { type: "string" }
-  }
-};
+function buildResponseJsonSchema(platforms: ContentPlatform[]) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: platforms,
+    properties: Object.fromEntries(platforms.map((platform) => [platform, { type: "string" }]))
+  };
+}
 
 const toneInstructions: Record<ContentTone, string> = {
   professional:
@@ -41,9 +38,33 @@ const toneInstructions: Record<ContentTone, string> = {
 };
 
 const lengthInstructions: Record<LengthPreset, string> = {
-  short: "Keep each output compact and fast to skim.",
-  medium: "Use a balanced amount of detail and breathing room.",
-  long: "Allow more depth, nuance, transitions, and detail."
+  short: "Keep each output clearly compressed. Prioritize the strongest ideas only.",
+  medium: "Use a balanced amount of detail, structure, and breathing room.",
+  long: "Expand with more context, transitions, examples from the source, and fuller development."
+};
+
+const lengthTargets: Record<LengthPreset, Record<ContentPlatform, string>> = {
+  short: {
+    linkedin: "around 80 to 140 words, 2 to 3 short paragraphs max",
+    x: "a short thread of 3 to 5 posts, each punchy and compact",
+    instagram: "around 70 to 130 words with a strong hook and tight caption flow",
+    reddit: "around 120 to 180 words, direct and practical",
+    newsletter: "around 140 to 220 words with headline, short summary, and compact body"
+  },
+  medium: {
+    linkedin: "around 160 to 260 words, 3 to 5 short paragraphs",
+    x: "a thread of 6 to 8 posts with a clear arc",
+    instagram: "around 140 to 220 words with more story and context",
+    reddit: "around 220 to 340 words with grounded detail",
+    newsletter: "around 260 to 420 words with headline, summary, and developed body"
+  },
+  long: {
+    linkedin: "around 280 to 420 words with fuller development and a stronger close",
+    x: "a deeper thread of 9 to 12 posts with smooth progression",
+    instagram: "around 240 to 380 words with richer storytelling and context",
+    reddit: "around 380 to 550 words with detailed but natural explanation",
+    newsletter: "around 500 to 800 words with a clear editorial flow"
+  }
 };
 
 const platformInstructions: Record<ContentPlatform, string> = {
@@ -160,7 +181,10 @@ function buildPrompt(input: {
   retryMode?: boolean;
 }) {
   const requestedPlatformRules = input.platforms
-    .map((platform) => `- ${platformInstructions[platform]}`)
+    .map(
+      (platform) =>
+        `- ${platformInstructions[platform]} Target length for this request: ${lengthTargets[input.lengthPreset][platform]}.`
+    )
     .join("\n");
 
   return `
@@ -174,7 +198,7 @@ ${input.platforms.map((platform) => `- ${platform}`).join("\n")}
 Tone:
 ${input.tone.toUpperCase()} — ${toneInstructions[input.tone]}
 
-Length:
+Length preset:
 ${input.lengthPreset.toUpperCase()} — ${lengthInstructions[input.lengthPreset]}
 
 Non-negotiable source fidelity rules:
@@ -189,7 +213,14 @@ Formatting rules:
 - No markdown code fences.
 - No explanation before or after JSON.
 - Include only the requested platform keys.
+- Every requested key must be present exactly once.
 - Each value must be plain text.
+
+Quality rules:
+- Make SHORT, MEDIUM, and LONG feel materially different in depth, pacing, and total output size.
+- Match the target length for each requested platform closely.
+- Avoid filler, repetition, and generic motivational phrasing.
+- Keep hooks, structure, and closing lines specific to each platform.
 
 Platform requirements:
 ${requestedPlatformRules}
@@ -198,7 +229,7 @@ ${
   input.retryMode
     ? `Important retry instruction:
 Your previous answer was not valid enough for the schema.
-Return only one valid JSON object now.`
+Return only one valid JSON object now, with every requested key filled.`
     : ""
 }
 
@@ -206,7 +237,7 @@ Source title:
 ${input.sourceTitle}
 
 Source text:
-${limitCharacters(input.sourceText, 22000)}
+${limitCharacters(input.sourceText, 26000)}
   `.trim();
 }
 
@@ -226,9 +257,9 @@ async function requestGeneration(input: {
     contents: buildPrompt(input),
     config: {
       responseMimeType: "application/json",
-      responseJsonSchema,
+      responseJsonSchema: buildResponseJsonSchema(input.platforms),
       temperature: input.retryMode ? 0.2 : 0.5,
-      maxOutputTokens: 3200
+      maxOutputTokens: input.lengthPreset === "long" ? 5600 : input.lengthPreset === "medium" ? 4200 : 2600
     }
   });
 

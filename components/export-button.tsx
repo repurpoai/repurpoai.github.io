@@ -30,7 +30,7 @@ export function ExportButton({
     return (
       <Button type="button" variant="outline" size="sm" disabled className="opacity-70">
         <Lock className="h-4 w-4" />
-        Pro export
+        Upgrade to export
       </Button>
     );
   }

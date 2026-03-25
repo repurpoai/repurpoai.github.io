@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -72,6 +73,53 @@ const platformIcons: Record<ContentPlatform, React.ComponentType<{ className?: s
   newsletter: Newspaper
 };
 
+
+function trimToSentence(value: string, maxCharacters: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxCharacters) return normalized;
+
+  const sliced = normalized.slice(0, maxCharacters).trim();
+  const boundary = sliced.search(/[.!?](?!.*[.!?])/);
+
+  if (boundary !== -1 && boundary >= Math.floor(maxCharacters * 0.45)) {
+    return sliced.slice(0, boundary + 1).trim();
+  }
+
+  const lastSeparator = Math.max(sliced.lastIndexOf(". "), sliced.lastIndexOf("! "), sliced.lastIndexOf("? "), sliced.lastIndexOf(", "), sliced.lastIndexOf("; "), sliced.lastIndexOf(": "));
+
+  if (lastSeparator !== -1 && lastSeparator >= Math.floor(maxCharacters * 0.45)) {
+    return sliced.slice(0, lastSeparator + 1).trim();
+  }
+
+  const lastSpace = sliced.lastIndexOf(" ");
+  return (lastSpace === -1 ? sliced : sliced.slice(0, lastSpace)).trim();
+}
+
+function buildImagePrompt(input: {
+  sourceTitle: string;
+  tone: ContentTone;
+  selectedPlatforms: ContentPlatform[];
+  outputs: Partial<Record<ContentPlatform, string>>;
+}) {
+  const orderedSeedPlatforms: ContentPlatform[] = ["instagram", "linkedin", "x", "newsletter", "reddit"];
+  const seed = orderedSeedPlatforms
+    .map((platform) => input.outputs[platform] ?? "")
+    .find((value) => value.trim()) ?? "";
+
+  const visualContext = trimToSentence(seed, 420);
+  const platformLabels = input.selectedPlatforms.map((platform) => PLATFORM_META[platform].label).join(", ");
+  const toneLabel = TONE_META[input.tone].label.toLowerCase();
+
+  return [
+    `Create a premium editorial social media visual inspired by "${input.sourceTitle}".`,
+    `Match a ${toneLabel} tone for ${platformLabels}.`,
+    "Use one clear focal subject, strong composition, layered depth, and a polished modern look.",
+    "No text overlay, no logos, no watermarks, no UI elements, no screenshots.",
+    visualContext ? `Visual direction: ${visualContext}` : "Visual direction: make the concept feel specific, polished, and story-led."
+  ].join(" ");
+}
+
 export function DashboardGenerator({
   tier,
   usedThisMonth,
@@ -138,18 +186,13 @@ export function DashboardGenerator({
   useEffect(() => {
     if (!state.data) return;
 
-    const seed =
-      state.data.outputs.instagram ??
-      state.data.outputs.linkedin ??
-      state.data.outputs.x ??
-      state.data.outputs.newsletter ??
-      state.data.outputs.reddit ??
-      "";
-
-    const compactSeed = seed.replace(/\s+/g, " ").trim().slice(0, 260);
-
     setImagePrompt(
-      `Create a clean modern social media visual inspired by "${state.data.sourceTitle}". Tone: ${state.data.tone}. Style: premium editorial, sharp composition, no watermarks, no visible UI. Context: ${compactSeed}`
+      buildImagePrompt({
+        sourceTitle: state.data.sourceTitle,
+        tone: state.data.tone,
+        selectedPlatforms: state.data.selectedPlatforms,
+        outputs: state.data.outputs
+      })
     );
     setImageUrl(null);
     setImageError(null);
@@ -566,14 +609,14 @@ export function DashboardGenerator({
           </Card>
 
           {state.data.selectedPlatforms.map((platform) => {
-            const textValue = state.data?.outputs[platform];
+            const textValue = state.data.outputs[platform];
             if (!textValue) return null;
 
             const Icon = platformIcons[platform];
 
             return (
               <Card key={platform} className="border-0 bg-white shadow-soft">
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
                     <CardTitle className="flex items-center gap-2">
                       <Icon className="h-5 w-5" />
@@ -581,7 +624,23 @@ export function DashboardGenerator({
                     </CardTitle>
                     <CardDescription>{PLATFORM_META[platform].description}</CardDescription>
                   </div>
-                  
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CopyButton text={textValue} label="Copy" />
+                    <ExportButton
+                      text={textValue}
+                      filename={`${platform}.txt`}
+                      disabled={!imageUnlocked}
+                    />
+                    {platform !== "newsletter" ? (
+                      <OpenInAppButton
+                        platform={platform}
+                        text={textValue}
+                        sourceTitle={state.data.sourceTitle}
+                        imageUrl={imageUrl}
+                      />
+                    ) : null}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
@@ -595,22 +654,6 @@ export function DashboardGenerator({
           <Card className="border-0 bg-white shadow-soft">
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div className="space-y-1">
-             <div className="flex flex-wrap items-center gap-2">
-  <CopyButton text={textValue} label="Copy" />
-  <ExportButton
-    text={textValue}
-    filename={`${platform}.txt`}
-    disabled={!imageUnlocked}
-  />
-  {platform !== "newsletter" ? (
-    <OpenInAppButton
-      platform={platform}
-      text={textValue}
-      sourceTitle={state.data?.sourceTitle}
-      imageUrl={imageUrl}
-    />
-  ) : null}
-</div>
                 <CardTitle className="flex items-center gap-2">
                   <FileImage className="h-5 w-5" />
                   Matching image
@@ -644,7 +687,7 @@ export function DashboardGenerator({
                       id="image-prompt"
                       value={imagePrompt}
                       onChange={(event) => setImagePrompt(event.target.value)}
-                      rows={4}
+                      rows={5}
                       placeholder="Describe the image you want..."
                     />
                   </div>
@@ -693,9 +736,12 @@ export function DashboardGenerator({
 
                   {imageUrl ? (
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <img
+                      <Image
                         src={imageUrl}
                         alt="Generated visual"
+                        width={1400}
+                        height={1400}
+                        unoptimized
                         className="h-auto w-full rounded-lg"
                       />
                     </div>

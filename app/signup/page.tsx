@@ -23,8 +23,7 @@ export default async function SignupPage() {
             Create your account and start repurposing content.
           </h1>
           <p className="max-w-xl text-lg text-slate-300">
-            Free users get 5 generations per month and Professional tone. Pro unlocks unlimited
-            generations and advanced tones.
+            Free users get 5 generations per month and Professional tone. Plus and Pro unlock unlimited generations, advanced tones, and image generation.
           </p>
         </div>
 

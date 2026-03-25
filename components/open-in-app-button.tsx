@@ -18,7 +18,7 @@ function getOpenUrl(platform: ContentPlatform, text: string, sourceTitle?: strin
 
   switch (platform) {
     case "x":
-      return `https://twitter.com/intent/tweet?text=${encodedText}`;
+      return `https://x.com/intent/post?text=${encodedText}`;
     case "linkedin":
       return "https://www.linkedin.com/feed/";
     case "instagram":
@@ -78,7 +78,7 @@ export function OpenInAppButton({
         await downloadImage(imageUrl, `${platform}-image.png`);
       }
 
-      window.open(openUrl, "_blank", "noopener,noreferrer");
+      window.location.assign(openUrl);
     } finally {
       setOpening(false);
     }

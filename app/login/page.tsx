@@ -23,8 +23,7 @@ export default async function LoginPage() {
             Log in to your content workspace.
           </h1>
           <p className="max-w-xl text-lg text-slate-300">
-            Continue generating plan-aware LinkedIn posts, X threads, and newsletter drafts from
-            raw text or extracted articles.
+            Continue generating multi-platform posts, captions, threads, and newsletter drafts from links, YouTube videos, or raw text.
           </p>
         </div>
 

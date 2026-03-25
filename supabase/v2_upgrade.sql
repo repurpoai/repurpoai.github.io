@@ -1,3 +1,6 @@
+-- Run this only on an existing Version 1 database.
+-- Fresh projects should use supabase/schema.sql only.
+
 alter table public.profiles
 drop constraint if exists profiles_tier_check;
 

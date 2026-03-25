@@ -50,12 +50,11 @@ export default async function HomePage() {
             </div>
 
             <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-white sm:text-5xl">
-              Repurpose one article into three polished formats, with SaaS-ready plan limits built in.
+              Turn one article, transcript, or text draft into platform-ready content in a few clicks.
             </h1>
 
             <p className="max-w-2xl text-lg text-slate-300">
-              Paste a URL or raw text, choose a tone, generate LinkedIn, X/Twitter, and newsletter
-              outputs, then save everything to private history.
+              Paste a URL, YouTube link, or raw text, choose platforms, tone, and length, then generate LinkedIn, X, Instagram, Reddit, and newsletter outputs with private history.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -94,7 +93,7 @@ export default async function HomePage() {
                   Tone-aware generation
                 </CardTitle>
                 <CardDescription className="text-slate-300">
-                  Professional on Free. Casual, Viral, and Authority on Pro.
+                  Professional on Free. Casual, Viral, and Authority on Plus and Pro.
                 </CardDescription>
               </CardHeader>
             </Card>
