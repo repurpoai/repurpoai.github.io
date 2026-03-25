@@ -78,7 +78,7 @@ export function OpenInAppButton({
         await downloadImage(imageUrl, `${platform}-image.png`);
       }
 
-      window.location.assign(openUrl);
+      window.location.assign(openUrl as string);
     } finally {
       setOpening(false);
     }
