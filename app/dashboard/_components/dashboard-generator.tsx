@@ -587,170 +587,176 @@ export function DashboardGenerator({
       ) : null}
 
       {state.data ? (
-        <div className="space-y-4">
-          <Card className="border-0 bg-white shadow-soft">
-            <CardHeader className="gap-2">
-              <CardTitle>Latest result</CardTitle>
-              <CardDescription>
-                {state.data.inputMode} • {TONE_META[state.data.tone].label} • {LENGTH_META[state.data.lengthPreset].label}
-              </CardDescription>
-              <div className="text-sm font-medium text-slate-900">{state.data.sourceTitle}</div>
-              {state.data.sourceUrl ? (
-                <a
-                  href={state.data.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="break-all text-sm font-medium text-slate-700 underline underline-offset-4"
-                >
-                  {state.data.sourceUrl}
-                </a>
-              ) : null}
-            </CardHeader>
-          </Card>
+        (() => {
+          const result = state.data;
 
-          {state.data.selectedPlatforms.map((platform) => {
-            const textValue = state.data.outputs[platform];
-            if (!textValue) return null;
+          return (
+            <div className="space-y-4">
+              <Card className="border-0 bg-white shadow-soft">
+                <CardHeader className="gap-2">
+                  <CardTitle>Latest result</CardTitle>
+                  <CardDescription>
+                    {result.inputMode} • {TONE_META[result.tone].label} • {LENGTH_META[result.lengthPreset].label}
+                  </CardDescription>
+                  <div className="text-sm font-medium text-slate-900">{result.sourceTitle}</div>
+                  {result.sourceUrl ? (
+                    <a
+                      href={result.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="break-all text-sm font-medium text-slate-700 underline underline-offset-4"
+                    >
+                      {result.sourceUrl}
+                    </a>
+                  ) : null}
+                </CardHeader>
+              </Card>
 
-            const Icon = platformIcons[platform];
+              {result.selectedPlatforms.map((platform) => {
+                const textValue = result.outputs[platform];
+                if (!textValue) return null;
 
-            return (
-              <Card key={platform} className="border-0 bg-white shadow-soft">
-                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                const Icon = platformIcons[platform];
+
+                return (
+                  <Card key={platform} className="border-0 bg-white shadow-soft">
+                    <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="flex items-center gap-2">
+                          <Icon className="h-5 w-5" />
+                          {PLATFORM_META[platform].label}
+                        </CardTitle>
+                        <CardDescription>{PLATFORM_META[platform].description}</CardDescription>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CopyButton text={textValue} label="Copy" />
+                        <ExportButton
+                          text={textValue}
+                          filename={`${platform}.txt`}
+                          disabled={!imageUnlocked}
+                        />
+                        {platform !== "newsletter" ? (
+                          <OpenInAppButton
+                            platform={platform}
+                            text={textValue}
+                            sourceTitle={result.sourceTitle}
+                            imageUrl={imageUrl}
+                          />
+                        ) : null}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                        {textValue}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              <Card className="border-0 bg-white shadow-soft">
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
                   <div className="space-y-1">
                     <CardTitle className="flex items-center gap-2">
-                      <Icon className="h-5 w-5" />
-                      {PLATFORM_META[platform].label}
+                      <FileImage className="h-5 w-5" />
+                      Matching image
                     </CardTitle>
-                    <CardDescription>{PLATFORM_META[platform].description}</CardDescription>
+                    <CardDescription>
+                      Generate a matching visual directly inside Repurpo.
+                    </CardDescription>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CopyButton text={textValue} label="Copy" />
-                    <ExportButton
-                      text={textValue}
-                      filename={`${platform}.txt`}
-                      disabled={!imageUnlocked}
-                    />
-                    {platform !== "newsletter" ? (
-                      <OpenInAppButton
-                        platform={platform}
-                        text={textValue}
-                        sourceTitle={state.data.sourceTitle}
-                        imageUrl={imageUrl}
-                      />
-                    ) : null}
-                  </div>
+                  {!imageUnlocked ? (
+                    <a
+                      href={upgradeHref}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                    >
+                      Unlock on Plus
+                    </a>
+                  ) : null}
                 </CardHeader>
-                <CardContent>
-                  <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                    {textValue}
-                  </div>
+
+                <CardContent className="space-y-4">
+                  {!imageUnlocked ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                      Image generation is locked on Free. Upgrade to Plus or Pro to enable it.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label htmlFor="image-prompt" className="text-sm font-medium text-slate-700">
+                          Image prompt
+                        </label>
+                        <Textarea
+                          id="image-prompt"
+                          value={imagePrompt}
+                          onChange={(event) => setImagePrompt(event.target.value)}
+                          rows={5}
+                          placeholder="Describe the image you want..."
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="image-ratio" className="text-sm font-medium text-slate-700">
+                          Aspect ratio
+                        </label>
+                        <select
+                          id="image-ratio"
+                          value={imageAspectRatio}
+                          onChange={(event) =>
+                            setImageAspectRatio(
+                              event.target.value as "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
+                            )
+                          }
+                          className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                        >
+                          <option value="1:1">1:1</option>
+                          <option value="3:4">3:4</option>
+                          <option value="4:3">4:3</option>
+                          <option value="9:16">9:16</option>
+                          <option value="16:9">16:9</option>
+                        </select>
+                      </div>
+
+                      {imageError ? (
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                          {imageError}
+                        </div>
+                      ) : null}
+
+                      <Button type="button" onClick={handleGenerateImage} disabled={imageLoading}>
+                        {imageLoading ? (
+                          <>
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                            Generating image...
+                          </>
+                        ) : (
+                          <>
+                            <FileImage className="h-4 w-4" />
+                            Generate image
+                          </>
+                        )}
+                      </Button>
+
+                      {imageUrl ? (
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <Image
+                            src={imageUrl}
+                            alt="Generated visual"
+                            width={1400}
+                            height={1400}
+                            unoptimized
+                            className="h-auto w-full rounded-lg"
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </CardContent>
               </Card>
-            );
-          })}
-
-          <Card className="border-0 bg-white shadow-soft">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div className="space-y-1">
-                <CardTitle className="flex items-center gap-2">
-                  <FileImage className="h-5 w-5" />
-                  Matching image
-                </CardTitle>
-                <CardDescription>
-                  Generate a matching visual directly inside Repurpo.
-                </CardDescription>
-              </div>
-              {!imageUnlocked ? (
-                <a
-                  href={upgradeHref}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
-                >
-                  Unlock on Plus
-                </a>
-              ) : null}
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {!imageUnlocked ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  Image generation is locked on Free. Upgrade to Plus or Pro to enable it.
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <label htmlFor="image-prompt" className="text-sm font-medium text-slate-700">
-                      Image prompt
-                    </label>
-                    <Textarea
-                      id="image-prompt"
-                      value={imagePrompt}
-                      onChange={(event) => setImagePrompt(event.target.value)}
-                      rows={5}
-                      placeholder="Describe the image you want..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="image-ratio" className="text-sm font-medium text-slate-700">
-                      Aspect ratio
-                    </label>
-                    <select
-                      id="image-ratio"
-                      value={imageAspectRatio}
-                      onChange={(event) =>
-                        setImageAspectRatio(
-                          event.target.value as "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
-                        )
-                      }
-                      className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                    >
-                      <option value="1:1">1:1</option>
-                      <option value="3:4">3:4</option>
-                      <option value="4:3">4:3</option>
-                      <option value="9:16">9:16</option>
-                      <option value="16:9">16:9</option>
-                    </select>
-                  </div>
-
-                  {imageError ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {imageError}
-                    </div>
-                  ) : null}
-
-                  <Button type="button" onClick={handleGenerateImage} disabled={imageLoading}>
-                    {imageLoading ? (
-                      <>
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                        Generating image...
-                      </>
-                    ) : (
-                      <>
-                        <FileImage className="h-4 w-4" />
-                        Generate image
-                      </>
-                    )}
-                  </Button>
-
-                  {imageUrl ? (
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <Image
-                        src={imageUrl}
-                        alt="Generated visual"
-                        width={1400}
-                        height={1400}
-                        unoptimized
-                        className="h-auto w-full rounded-lg"
-                      />
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          );
+        })()
       ) : null}
     </div>
   );
