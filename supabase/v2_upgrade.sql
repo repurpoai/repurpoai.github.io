@@ -59,3 +59,54 @@ set outputs = jsonb_strip_nulls(
   )
 )
 where outputs = '{}'::jsonb;
+
+create table if not exists public.image_generations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  prompt text not null,
+  aspect_ratio text not null default '1:1' check (aspect_ratio in ('1:1', '3:4', '4:3', '9:16', '16:9')),
+  model_name text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists image_generations_user_id_idx on public.image_generations (user_id);
+create index if not exists image_generations_created_at_idx on public.image_generations (created_at desc);
+create index if not exists image_generations_user_id_created_at_idx on public.image_generations (user_id, created_at desc);
+
+drop trigger if exists set_image_generations_updated_at on public.image_generations;
+create trigger set_image_generations_updated_at
+before update on public.image_generations
+for each row
+execute function public.set_updated_at();
+
+alter table public.image_generations enable row level security;
+
+drop policy if exists "image_generations_select_own" on public.image_generations;
+create policy "image_generations_select_own"
+on public.image_generations
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "image_generations_insert_own" on public.image_generations;
+create policy "image_generations_insert_own"
+on public.image_generations
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "image_generations_update_own" on public.image_generations;
+create policy "image_generations_update_own"
+on public.image_generations
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "image_generations_delete_own" on public.image_generations;
+create policy "image_generations_delete_own"
+on public.image_generations
+for delete
+to authenticated
+using (auth.uid() = user_id);

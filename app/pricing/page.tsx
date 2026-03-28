@@ -20,7 +20,7 @@ export default async function PricingPage() {
           </div>
           <CardTitle className="text-3xl text-white">Free, Plus, and Pro</CardTitle>
           <CardDescription className="text-slate-300">
-            Free gets you started. Plus unlocks images. Pro keeps the top tier open.
+            Free gets 1 image a month, Plus gets 5, and Pro removes the cap.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -88,6 +88,9 @@ export default async function PricingPage() {
             usedThisMonth={viewer.usedThisMonth}
             monthlyLimit={viewer.monthlyLimit}
             remainingThisMonth={viewer.remainingThisMonth}
+            imageUsedThisMonth={viewer.imageUsedThisMonth}
+            imageMonthlyLimit={viewer.imageMonthlyLimit}
+            imageRemainingThisMonth={viewer.imageRemainingThisMonth}
             usageWindowLabel={viewer.usageWindowLabel}
           />
           <section className="min-w-0 flex-1">{pricingContent}</section>

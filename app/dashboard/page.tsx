@@ -22,6 +22,9 @@ export default async function DashboardPage() {
           usedThisMonth={viewer.usedThisMonth}
           monthlyLimit={viewer.monthlyLimit}
           remainingThisMonth={viewer.remainingThisMonth}
+          imageUsedThisMonth={viewer.imageUsedThisMonth}
+          imageMonthlyLimit={viewer.imageMonthlyLimit}
+          imageRemainingThisMonth={viewer.imageRemainingThisMonth}
           usageWindowLabel={viewer.usageWindowLabel}
         />
         <section className="min-w-0 flex-1">
@@ -30,6 +33,9 @@ export default async function DashboardPage() {
             usedThisMonth={viewer.usedThisMonth}
             monthlyLimit={viewer.monthlyLimit}
             remainingThisMonth={viewer.remainingThisMonth}
+            imageUsedThisMonth={viewer.imageUsedThisMonth}
+            imageMonthlyLimit={viewer.imageMonthlyLimit}
+            imageRemainingThisMonth={viewer.imageRemainingThisMonth}
             usageWindowLabel={viewer.usageWindowLabel}
             upgradeHref={upgradeHref}
           />

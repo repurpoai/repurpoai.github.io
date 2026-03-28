@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, Home, LogOut, User, Wallet } from "lucide-react";
+import { History, Home, Image as ImageIcon, LogOut, User, Wallet } from "lucide-react";
 import { logoutAction } from "@/app/auth/actions";
 import { PlanBadge } from "@/components/plan-badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ type SidebarProps = {
   usedThisMonth: number;
   monthlyLimit: number | null;
   remainingThisMonth: number | null;
+  imageUsedThisMonth: number;
+  imageMonthlyLimit: number | null;
+  imageRemainingThisMonth: number | null;
   usageWindowLabel: string;
 };
 
@@ -50,12 +53,19 @@ export function Sidebar({
   usedThisMonth,
   monthlyLimit,
   remainingThisMonth,
+  imageUsedThisMonth,
+  imageMonthlyLimit,
+  imageRemainingThisMonth,
   usageWindowLabel
 }: SidebarProps) {
   const pathname = usePathname();
   const displayName = userName?.trim() || userEmail?.split("@")[0] || "Workspace";
-  const usagePercent =
+  const textUsagePercent =
     monthlyLimit === null ? 0 : Math.min((usedThisMonth / monthlyLimit) * 100, 100);
+  const imageUsagePercent =
+    imageMonthlyLimit === null
+      ? 0
+      : Math.min((imageUsedThisMonth / imageMonthlyLimit) * 100, 100);
 
   return (
     <Card className="w-full border-0 bg-slate-950 p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:w-72 lg:self-start">
@@ -69,30 +79,56 @@ export function Sidebar({
           <PlanBadge tier={tier} />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          {monthlyLimit === null ? (
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-white">Unlimited generations</div>
-              <p className="text-xs text-slate-400">
-                Your current plan has no monthly text generation cap.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-white">
-                {usedThisMonth}/{monthlyLimit} used in {usageWindowLabel}
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            {monthlyLimit === null ? (
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-white">Unlimited text generations</div>
+                <p className="text-xs text-slate-400">
+                  Your current plan has no monthly text generation cap.
+                </p>
               </div>
-              <div className="h-2 rounded-full bg-white/10">
-                <div
-                  className="h-2 rounded-full bg-white"
-                  style={{ width: `${usagePercent}%` }}
-                />
+            ) : (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-white">
+                  {usedThisMonth}/{monthlyLimit} text used in {usageWindowLabel}
+                </div>
+                <div className="h-2 rounded-full bg-white/10">
+                  <div className="h-2 rounded-full bg-white" style={{ width: `${textUsagePercent}%` }} />
+                </div>
+                <p className="text-xs text-slate-400">
+                  {remainingThisMonth} text generations remaining this month.
+                </p>
               </div>
-              <p className="text-xs text-slate-400">
-                {remainingThisMonth} generations remaining this month.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            {imageMonthlyLimit === null ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium text-white">
+                  <ImageIcon className="h-4 w-4" />
+                  Unlimited images
+                </div>
+                <p className="text-xs text-slate-400">
+                  Your current plan has no monthly image cap.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-white">
+                  <ImageIcon className="h-4 w-4" />
+                  {imageUsedThisMonth}/{imageMonthlyLimit} images used in {usageWindowLabel}
+                </div>
+                <div className="h-2 rounded-full bg-white/10">
+                  <div className="h-2 rounded-full bg-white" style={{ width: `${imageUsagePercent}%` }} />
+                </div>
+                <p className="text-xs text-slate-400">
+                  {imageRemainingThisMonth} images remaining this month.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <nav className="space-y-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type ComponentType } from "react";
 import {
   CheckCircle2,
   Crown,
@@ -61,11 +61,14 @@ type DashboardGeneratorProps = {
   usedThisMonth: number;
   monthlyLimit: number | null;
   remainingThisMonth: number | null;
+  imageUsedThisMonth: number;
+  imageMonthlyLimit: number | null;
+  imageRemainingThisMonth: number | null;
   usageWindowLabel: string;
   upgradeHref: string;
 };
 
-const platformIcons: Record<ContentPlatform, React.ComponentType<{ className?: string }>> = {
+const platformIcons: Record<ContentPlatform, ComponentType<{ className?: string }>> = {
   linkedin: Megaphone,
   x: Link2,
   instagram: FileText,
@@ -125,6 +128,9 @@ export function DashboardGenerator({
   usedThisMonth,
   monthlyLimit,
   remainingThisMonth,
+  imageUsedThisMonth,
+  imageMonthlyLimit,
+  imageRemainingThisMonth,
   usageWindowLabel,
   upgradeHref
 }: DashboardGeneratorProps) {
@@ -151,18 +157,30 @@ export function DashboardGenerator({
     generateContentAction,
     initialGenerationFormState
   );
+  const [imageUsage, setImageUsage] = useState({
+    imageUsedThisMonth,
+    imageMonthlyLimit,
+    imageRemainingThisMonth,
+    usageWindowLabel
+  });
 
   const usage = state.usage ?? {
     tier,
     usedThisMonth,
     monthlyLimit,
     remainingThisMonth,
+    imageUsedThisMonth,
+    imageMonthlyLimit,
+    imageRemainingThisMonth,
     usageWindowLabel
   };
 
   const currentTier = usage.tier;
   const atLimit = usage.monthlyLimit !== null && usage.usedThisMonth >= usage.monthlyLimit;
   const imageUnlocked = isImageUnlocked(currentTier);
+  const imageAtLimit =
+    imageUsage.imageMonthlyLimit !== null &&
+    imageUsage.imageUsedThisMonth >= imageUsage.imageMonthlyLimit;
 
   const wordCount = useMemo(() => {
     const value = text.trim();
@@ -194,13 +212,28 @@ export function DashboardGenerator({
         outputs: state.data.outputs
       })
     );
+    setImageUsage({
+      imageUsedThisMonth: usage.imageUsedThisMonth,
+      imageMonthlyLimit: usage.imageMonthlyLimit,
+      imageRemainingThisMonth: usage.imageRemainingThisMonth,
+      usageWindowLabel: usage.usageWindowLabel
+    });
     setImageUrl(null);
     setImageError(null);
-  }, [state.data]);
+  }, [state.data, usage.imageMonthlyLimit, usage.imageRemainingThisMonth, usage.imageUsedThisMonth, usage.usageWindowLabel]);
 
   async function handleGenerateImage() {
     if (!imageUnlocked) {
-      setImageError("Image generation is available on Plus and Pro only.");
+      setImageError("Image generation is not available on your current plan.");
+      return;
+    }
+
+    if (imageAtLimit) {
+      setImageError(
+        currentTier === "free"
+          ? "You already used your 1 image for this month on Free."
+          : "You reached your monthly image limit for Plus."
+      );
       return;
     }
 
@@ -228,7 +261,17 @@ export function DashboardGenerator({
       const result = (await response.json()) as {
         imageDataUrl?: string;
         error?: string;
+        usage?: {
+          imageUsedThisMonth: number;
+          imageMonthlyLimit: number | null;
+          imageRemainingThisMonth: number | null;
+          usageWindowLabel: string;
+        };
       };
+
+      if (result.usage) {
+        setImageUsage(result.usage);
+      }
 
       if (!response.ok) {
         throw new Error(result.error || "Image generation failed.");
@@ -259,7 +302,7 @@ export function DashboardGenerator({
           <div className="space-y-2">
             <CardTitle className="text-3xl text-white">Choose platforms first, then generate</CardTitle>
             <CardDescription className="max-w-3xl text-slate-300">
-              Link, text, or YouTube in. Multi-platform content out. Plus and Pro also unlock in-app image generation.
+              Link, text, or YouTube in. Multi-platform content out. Gemini writes the copy. Cloudflare generates the image. Every plan includes image generation with monthly limits.
             </CardDescription>
           </div>
         </CardHeader>
@@ -274,24 +317,31 @@ export function DashboardGenerator({
             </div>
 
             <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
-              {usage.monthlyLimit === null ? (
-                <div className="flex items-center gap-2 font-medium">
-                  <Crown className="h-4 w-4" />
-                  {currentTier === "plus" ? "Plus" : "Pro"} plan • Unlimited generations
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="font-medium">
-                    Free plan • {usage.usedThisMonth}/{usage.monthlyLimit} used in {usage.usageWindowLabel}
+              <div className="space-y-2">
+                {usage.monthlyLimit === null ? (
+                  <div className="flex items-center gap-2 font-medium">
+                    <Crown className="h-4 w-4" />
+                    {currentTier === "plus" ? "Plus" : "Pro"} plan • Unlimited text generations
                   </div>
-                  <div className="h-2 w-56 rounded-full bg-slate-200">
-                    <div
-                      className="h-2 rounded-full bg-slate-900 transition-all"
-                      style={{ width: `${usagePercent}%` }}
-                    />
-                  </div>
+                ) : (
+                  <>
+                    <div className="font-medium">
+                      Free plan • {usage.usedThisMonth}/{usage.monthlyLimit} text used in {usage.usageWindowLabel}
+                    </div>
+                    <div className="h-2 w-56 rounded-full bg-slate-200">
+                      <div
+                        className="h-2 rounded-full bg-slate-900 transition-all"
+                        style={{ width: `${usagePercent}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="text-xs text-slate-500">
+                  {imageUsage.imageMonthlyLimit === null
+                    ? "Image quota: unlimited"
+                    : `Image quota: ${imageUsage.imageUsedThisMonth}/${imageUsage.imageMonthlyLimit} used`}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -303,7 +353,7 @@ export function DashboardGenerator({
                     {usage.remainingThisMonth} generations remaining this month
                   </p>
                   <p className="text-sm text-slate-500">
-                    Upgrade to Plus or Pro to unlock all tones and image generation.
+                    Upgrade to Plus or Pro to unlock all tones and higher image limits.
                   </p>
                 </div>
                 <a
@@ -663,27 +713,23 @@ export function DashboardGenerator({
                       Matching image
                     </CardTitle>
                     <CardDescription>
-                      Generate a matching visual directly inside Repurpo.
+                      Generate a matching visual directly inside Repurpo with your monthly image allowance.
                     </CardDescription>
                   </div>
-                  {!imageUnlocked ? (
-                    <a
-                      href={upgradeHref}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
-                    >
-                      Unlock on Plus
-                    </a>
-                  ) : null}
+                  <a
+                    href={upgradeHref}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                  >
+                    View plans
+                  </a>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {!imageUnlocked ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                      Image generation is locked on Free. Upgrade to Plus or Pro to enable it.
+                      Free gets 1 image per month, Plus gets 5 per month, and Pro gets unlimited images.
                     </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
+
+                    <div className="space-y-2">
                         <label htmlFor="image-prompt" className="text-sm font-medium text-slate-700">
                           Image prompt
                         </label>
@@ -718,13 +764,19 @@ export function DashboardGenerator({
                         </select>
                       </div>
 
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        {imageUsage.imageMonthlyLimit === null
+                          ? `Unlimited images on ${currentTier === "pro" ? "Pro" : "your plan"}.`
+                          : `${imageUsage.imageUsedThisMonth}/${imageUsage.imageMonthlyLimit} images used in ${imageUsage.usageWindowLabel}. ${imageUsage.imageRemainingThisMonth} remaining.`}
+                      </div>
+
                       {imageError ? (
                         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                           {imageError}
                         </div>
                       ) : null}
 
-                      <Button type="button" onClick={handleGenerateImage} disabled={imageLoading}>
+                      <Button type="button" onClick={handleGenerateImage} disabled={imageLoading || imageAtLimit}>
                         {imageLoading ? (
                           <>
                             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -738,20 +790,18 @@ export function DashboardGenerator({
                         )}
                       </Button>
 
-                      {imageUrl ? (
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <Image
-                            src={imageUrl}
-                            alt="Generated visual"
-                            width={1400}
-                            height={1400}
-                            unoptimized
-                            className="h-auto w-full rounded-lg"
-                          />
-                        </div>
-                      ) : null}
-                    </>
-                  )}
+                    {imageUrl ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <Image
+                          src={imageUrl}
+                          alt="Generated visual"
+                          width={1400}
+                          height={1400}
+                          unoptimized
+                          className="h-auto w-full rounded-lg"
+                        />
+                      </div>
+                    ) : null}
                 </CardContent>
               </Card>
             </div>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { extractArticleFromUrl } from "@/lib/extract-article";
-import { generateRepurposedContent, type PlatformOutputs } from "@/lib/together";
+import { generateRepurposedContent, type PlatformOutputs } from "@/lib/gemini";
 import {
   canUseTone,
   CONTENT_PLATFORMS,
@@ -16,7 +16,7 @@ import {
   type PlanTier
 } from "@/lib/plans";
 import { countWords, sanitizeSourceText } from "@/lib/utils";
-import { getViewerContext } from "@/lib/viewer";
+import { getViewerContext, type ViewerContext } from "@/lib/viewer";
 import { extractYouTubeTranscript } from "@/lib/youtube";
 
 type InputMode = "link" | "text" | "youtube";
@@ -26,8 +26,30 @@ type UsageState = {
   usedThisMonth: number;
   monthlyLimit: number | null;
   remainingThisMonth: number | null;
+  imageUsedThisMonth: number;
+  imageMonthlyLimit: number | null;
+  imageRemainingThisMonth: number | null;
   usageWindowLabel: string;
 };
+
+function buildUsageState(
+  viewer: ViewerContext | null,
+  overrides?: Partial<UsageState>
+): UsageState | null {
+  if (!viewer) return null;
+
+  return {
+    tier: viewer.tier,
+    usedThisMonth: viewer.usedThisMonth,
+    monthlyLimit: viewer.monthlyLimit,
+    remainingThisMonth: viewer.remainingThisMonth,
+    imageUsedThisMonth: viewer.imageUsedThisMonth,
+    imageMonthlyLimit: viewer.imageMonthlyLimit,
+    imageRemainingThisMonth: viewer.imageRemainingThisMonth,
+    usageWindowLabel: viewer.usageWindowLabel,
+    ...overrides
+  };
+}
 
 export type GenerationFormState = {
   success: boolean;
@@ -102,13 +124,7 @@ export async function generateContentAction(
       success: false,
       error: platformsParse.error.issues[0]?.message ?? "Select at least one platform.",
       data: null,
-      usage: {
-        tier: viewer.tier,
-        usedThisMonth: viewer.usedThisMonth,
-        monthlyLimit: viewer.monthlyLimit,
-        remainingThisMonth: viewer.remainingThisMonth,
-        usageWindowLabel: viewer.usageWindowLabel
-      }
+      usage: buildUsageState(viewer)
     };
   }
 
@@ -119,13 +135,7 @@ export async function generateContentAction(
       success: false,
       error: "That tone is available on paid plans only.",
       data: null,
-      usage: {
-        tier: viewer.tier,
-        usedThisMonth: viewer.usedThisMonth,
-        monthlyLimit: viewer.monthlyLimit,
-        remainingThisMonth: viewer.remainingThisMonth,
-        usageWindowLabel: viewer.usageWindowLabel
-      }
+      usage: buildUsageState(viewer)
     };
   }
 
@@ -134,13 +144,7 @@ export async function generateContentAction(
       success: false,
       error: "You have reached your monthly Free plan limit. Upgrade to continue generating.",
       data: null,
-      usage: {
-        tier: viewer.tier,
-        usedThisMonth: viewer.usedThisMonth,
-        monthlyLimit: viewer.monthlyLimit,
-        remainingThisMonth: 0,
-        usageWindowLabel: viewer.usageWindowLabel
-      }
+      usage: buildUsageState(viewer, { remainingThisMonth: 0 })
     };
   }
 
@@ -157,13 +161,7 @@ export async function generateContentAction(
         success: false,
         error: parsedUrl.error.issues[0]?.message ?? "Enter a valid URL.",
         data: null,
-        usage: {
-          tier: viewer.tier,
-          usedThisMonth: viewer.usedThisMonth,
-          monthlyLimit: viewer.monthlyLimit,
-          remainingThisMonth: viewer.remainingThisMonth,
-          usageWindowLabel: viewer.usageWindowLabel
-        }
+        usage: buildUsageState(viewer)
       };
     }
 
@@ -181,13 +179,7 @@ export async function generateContentAction(
             ? error.message
             : "Could not extract readable content from that URL.",
         data: null,
-        usage: {
-          tier: viewer.tier,
-          usedThisMonth: viewer.usedThisMonth,
-          monthlyLimit: viewer.monthlyLimit,
-          remainingThisMonth: viewer.remainingThisMonth,
-          usageWindowLabel: viewer.usageWindowLabel
-        }
+        usage: buildUsageState(viewer)
       };
     }
   } else if (mode === "youtube") {
@@ -198,13 +190,7 @@ export async function generateContentAction(
         success: false,
         error: parsedUrl.error.issues[0]?.message ?? "Enter a valid YouTube URL.",
         data: null,
-        usage: {
-          tier: viewer.tier,
-          usedThisMonth: viewer.usedThisMonth,
-          monthlyLimit: viewer.monthlyLimit,
-          remainingThisMonth: viewer.remainingThisMonth,
-          usageWindowLabel: viewer.usageWindowLabel
-        }
+        usage: buildUsageState(viewer)
       };
     }
 
@@ -222,13 +208,7 @@ export async function generateContentAction(
             ? error.message
             : "Could not fetch a usable YouTube transcript.",
         data: null,
-        usage: {
-          tier: viewer.tier,
-          usedThisMonth: viewer.usedThisMonth,
-          monthlyLimit: viewer.monthlyLimit,
-          remainingThisMonth: viewer.remainingThisMonth,
-          usageWindowLabel: viewer.usageWindowLabel
-        }
+        usage: buildUsageState(viewer)
       };
     }
   } else {
@@ -239,13 +219,7 @@ export async function generateContentAction(
         success: false,
         error: parsedText.error.issues[0]?.message ?? "Invalid source text.",
         data: null,
-        usage: {
-          tier: viewer.tier,
-          usedThisMonth: viewer.usedThisMonth,
-          monthlyLimit: viewer.monthlyLimit,
-          remainingThisMonth: viewer.remainingThisMonth,
-          usageWindowLabel: viewer.usageWindowLabel
-        }
+        usage: buildUsageState(viewer)
       };
     }
 
@@ -304,13 +278,7 @@ export async function generateContentAction(
         outputs: generated.outputs,
         selectedPlatforms
       },
-      usage: {
-        tier: viewer.tier,
-        usedThisMonth,
-        monthlyLimit: viewer.monthlyLimit,
-        remainingThisMonth,
-        usageWindowLabel: viewer.usageWindowLabel
-      }
+      usage: buildUsageState(viewer, { usedThisMonth, remainingThisMonth })
     };
   } catch (error) {
     return {
@@ -320,13 +288,7 @@ export async function generateContentAction(
           ? error.message
           : "Something went wrong while generating content.",
       data: null,
-      usage: {
-        tier: viewer.tier,
-        usedThisMonth: viewer.usedThisMonth,
-        monthlyLimit: viewer.monthlyLimit,
-        remainingThisMonth: viewer.remainingThisMonth,
-        usageWindowLabel: viewer.usageWindowLabel
-      }
+      usage: buildUsageState(viewer)
     };
   }
 }

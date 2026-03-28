@@ -75,6 +75,9 @@ export default async function HistoryPage() {
           usedThisMonth={viewer.usedThisMonth}
           monthlyLimit={viewer.monthlyLimit}
           remainingThisMonth={viewer.remainingThisMonth}
+          imageUsedThisMonth={viewer.imageUsedThisMonth}
+          imageMonthlyLimit={viewer.imageMonthlyLimit}
+          imageRemainingThisMonth={viewer.imageRemainingThisMonth}
           usageWindowLabel={viewer.usageWindowLabel}
         />
 

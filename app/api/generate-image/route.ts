@@ -1,7 +1,8 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateImageFromPrompt } from "@/lib/together-image";
-import { isImageUnlocked } from "@/lib/plans";
+import { createClient } from "@/lib/supabase/server";
+import { generateImageFromPrompt } from "@/lib/cloudflare-image";
 import { getViewerContext } from "@/lib/viewer";
 
 const bodySchema = z.object({
@@ -13,15 +14,27 @@ export async function POST(request: Request) {
   const viewer = await getViewerContext();
 
   if (!viewer) {
-    return NextResponse.json(
-      { error: "Unauthorized." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  if (!isImageUnlocked(viewer.tier)) {
+  if (
+    viewer.imageMonthlyLimit !== null &&
+    viewer.imageUsedThisMonth >= viewer.imageMonthlyLimit
+  ) {
     return NextResponse.json(
-      { error: "Image generation is available on Plus and Pro only." },
+      {
+        error:
+          viewer.tier === "free"
+            ? "You have already used your 1 image for this month on Free. Upgrade for more images."
+            : "You have reached your monthly image limit for Plus. Upgrade to Pro for unlimited images.",
+        usage: {
+          tier: viewer.tier,
+          imageUsedThisMonth: viewer.imageUsedThisMonth,
+          imageMonthlyLimit: viewer.imageMonthlyLimit,
+          imageRemainingThisMonth: 0,
+          usageWindowLabel: viewer.usageWindowLabel
+        }
+      },
       { status: 403 }
     );
   }
@@ -42,9 +55,38 @@ export async function POST(request: Request) {
       aspectRatio: parsed.data.aspectRatio
     });
 
+    const supabase = await createClient();
+    const { error: insertError } = await supabase.from("image_generations").insert({
+      user_id: viewer.userId,
+      prompt: parsed.data.prompt,
+      aspect_ratio: parsed.data.aspectRatio ?? "1:1",
+      model_name: result.model
+    });
+
+    if (!insertError) {
+      revalidatePath("/dashboard");
+      revalidatePath("/profile");
+    }
+
+    const imageUsedThisMonth = insertError
+      ? viewer.imageUsedThisMonth
+      : viewer.imageUsedThisMonth + 1;
+    const imageRemainingThisMonth =
+      viewer.imageMonthlyLimit === null
+        ? null
+        : Math.max(viewer.imageMonthlyLimit - imageUsedThisMonth, 0);
+
     return NextResponse.json({
       imageDataUrl: result.dataUrl,
-      model: result.model
+      model: result.model,
+      usage: {
+        tier: viewer.tier,
+        imageUsedThisMonth,
+        imageMonthlyLimit: viewer.imageMonthlyLimit,
+        imageRemainingThisMonth,
+        usageWindowLabel: viewer.usageWindowLabel
+      },
+      warning: insertError ? "Image generated, but usage could not be saved." : null
     });
   } catch (error) {
     return NextResponse.json(

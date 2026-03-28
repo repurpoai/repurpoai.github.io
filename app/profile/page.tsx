@@ -24,6 +24,9 @@ export default async function ProfilePage() {
           usedThisMonth={viewer.usedThisMonth}
           monthlyLimit={viewer.monthlyLimit}
           remainingThisMonth={viewer.remainingThisMonth}
+          imageUsedThisMonth={viewer.imageUsedThisMonth}
+          imageMonthlyLimit={viewer.imageMonthlyLimit}
+          imageRemainingThisMonth={viewer.imageRemainingThisMonth}
           usageWindowLabel={viewer.usageWindowLabel}
         />
 
@@ -65,12 +68,22 @@ export default async function ProfilePage() {
 
               <div className="flex items-start gap-3">
                 <Sparkles className="mt-1 h-4 w-4 text-slate-500" />
-                <div>
-                  <div className="text-sm text-slate-500">Usage this month</div>
-                  <div className="font-medium text-slate-900">
-                    {viewer.monthlyLimit === null
-                      ? "Unlimited generations"
-                      : `${viewer.usedThisMonth}/${viewer.monthlyLimit} used`}
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm text-slate-500">Text usage this month</div>
+                    <div className="font-medium text-slate-900">
+                      {viewer.monthlyLimit === null
+                        ? "Unlimited text generations"
+                        : `${viewer.usedThisMonth}/${viewer.monthlyLimit} used`}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">Image usage this month</div>
+                    <div className="font-medium text-slate-900">
+                      {viewer.imageMonthlyLimit === null
+                        ? "Unlimited images"
+                        : `${viewer.imageUsedThisMonth}/${viewer.imageMonthlyLimit} used`}
+                    </div>
                   </div>
                 </div>
               </div>

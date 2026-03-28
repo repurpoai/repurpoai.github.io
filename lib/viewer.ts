@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getMonthRange, getMonthlyLimitForTier, normalizeTier, type PlanTier } from "@/lib/plans";
+import {
+  getImageMonthlyLimitForTier,
+  getMonthRange,
+  getMonthlyLimitForTier,
+  normalizeTier,
+  type PlanTier
+} from "@/lib/plans";
 
 export type ViewerContext = {
   userId: string;
@@ -9,6 +15,9 @@ export type ViewerContext = {
   monthlyLimit: number | null;
   usedThisMonth: number;
   remainingThisMonth: number | null;
+  imageMonthlyLimit: number | null;
+  imageUsedThisMonth: number;
+  imageRemainingThisMonth: number | null;
   usageWindowLabel: string;
   isPaid: boolean;
   isPro: boolean;
@@ -37,19 +46,32 @@ export async function getViewerContext(): Promise<ViewerContext | null> {
       ? profile.monthly_generation_limit
       : null
   );
+  const imageMonthlyLimit = getImageMonthlyLimitForTier(tier);
 
   const { startIso, endIso, label } = getMonthRange();
 
-  const { count } = await supabase
-    .from("generations")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", startIso)
-    .lt("created_at", endIso);
+  const [{ count: generationCount }, { count: imageCount }] = await Promise.all([
+    supabase
+      .from("generations")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", startIso)
+      .lt("created_at", endIso),
+    supabase
+      .from("image_generations")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", startIso)
+      .lt("created_at", endIso)
+  ]);
 
-  const usedThisMonth = count ?? 0;
+  const usedThisMonth = generationCount ?? 0;
   const remainingThisMonth =
     monthlyLimit === null ? null : Math.max(monthlyLimit - usedThisMonth, 0);
+
+  const imageUsedThisMonth = imageCount ?? 0;
+  const imageRemainingThisMonth =
+    imageMonthlyLimit === null ? null : Math.max(imageMonthlyLimit - imageUsedThisMonth, 0);
 
   return {
     userId,
@@ -59,6 +81,9 @@ export async function getViewerContext(): Promise<ViewerContext | null> {
     monthlyLimit,
     usedThisMonth,
     remainingThisMonth,
+    imageMonthlyLimit,
+    imageUsedThisMonth,
+    imageRemainingThisMonth,
     usageWindowLabel: label,
     isPaid: tier !== "free",
     isPro: tier === "pro"

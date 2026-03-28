@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
   type ContentPlatform,
@@ -5,8 +6,6 @@ import {
   type LengthPreset
 } from "@/lib/plans";
 import { limitCharacters } from "@/lib/utils";
-
-const TOGETHER_API_BASE = "https://api.together.xyz/v1";
 
 const platformOutputSchema = z.object({
   linkedin: z.string().min(1).optional(),
@@ -18,18 +17,14 @@ const platformOutputSchema = z.object({
 
 export type PlatformOutputs = Partial<Record<ContentPlatform, string>>;
 
-type TogetherChatResponse = {
-  model?: string;
-  choices?: Array<{
-    text?: string;
-    message?: {
-      content?: string | Array<{ type?: string; text?: string }>;
-    };
-  }>;
-  error?: {
-    message?: string;
+function buildResponseJsonSchema(platforms: ContentPlatform[]) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: platforms,
+    properties: Object.fromEntries(platforms.map((platform) => [platform, { type: "string" }]))
   };
-};
+}
 
 const toneInstructions: Record<ContentTone, string> = {
   professional:
@@ -76,7 +71,7 @@ const platformInstructions: Record<ContentPlatform, string> = {
   linkedin:
     "LinkedIn: strong opening line, 3 to 5 short paragraphs, one compact bullet-style section if useful, and a thoughtful closing line or question.",
   x:
-    "X: create a numbered thread with short posts separated by blank lines. Start with a strong opener and end with a concise takeaway.",
+    "X: create a numbered thread with 6 to 8 short posts separated by blank lines. Start with a strong opener and end with a concise takeaway.",
   instagram:
     "Instagram: create a caption with a strong hook, short visual-friendly lines, natural paragraph breaks, and a light hashtag section only if it genuinely fits the source.",
   reddit:
@@ -85,18 +80,53 @@ const platformInstructions: Record<ContentPlatform, string> = {
     "Newsletter: start with a headline, add a short summary line, then write a concise, readable editorial-style body."
 };
 
-function getApiKey() {
-  const apiKey = process.env.TOGETHER_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim();
-
-  if (!apiKey) {
-    throw new Error("Missing TOGETHER_API_KEY.");
-  }
-
-  return apiKey;
+function getModelName() {
+  return process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 }
 
-function getModelName() {
-  return process.env.TOGETHER_MODEL?.trim() || "Qwen/Qwen3.5-9B";
+function getClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY.");
+  }
+
+  return new GoogleGenAI({ apiKey });
+}
+
+function extractResponseText(response: unknown) {
+  const candidate = response as
+    | {
+        text?: string | (() => string);
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{
+              text?: string;
+            }>;
+          };
+        }>;
+      }
+    | undefined;
+
+  if (typeof candidate?.text === "string" && candidate.text.trim()) {
+    return candidate.text;
+  }
+
+  if (typeof candidate?.text === "function") {
+    const value = candidate.text();
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  const partsText =
+    candidate?.candidates
+      ?.flatMap((item) => item.content?.parts ?? [])
+      .map((part) => part.text ?? "")
+      .join("")
+      .trim() ?? "";
+
+  return partsText;
 }
 
 function cleanJsonCandidate(raw: string) {
@@ -127,9 +157,7 @@ function parseStructuredJson(raw: string) {
     try {
       const parsed = JSON.parse(attempt);
       return platformOutputSchema.parse(parsed);
-    } catch {
-      // keep trying alternate candidates
-    }
+    } catch {}
   }
 
   throw new Error("The model returned malformed JSON.");
@@ -205,11 +233,6 @@ Return only one valid JSON object now, with every requested key filled.`
     : ""
 }
 
-Schema reminder:
-{
-${input.platforms.map((platform) => `  "${platform}": "string"`).join(",\n")}
-}
-
 Source title:
 ${input.sourceTitle}
 
@@ -218,29 +241,7 @@ ${limitCharacters(input.sourceText, 26000)}
   `.trim();
 }
 
-function extractResponseText(response: TogetherChatResponse) {
-  const choice = response.choices?.[0];
-  if (!choice) return "";
-
-  if (typeof choice.message?.content === "string") {
-    return choice.message.content.trim();
-  }
-
-  if (Array.isArray(choice.message?.content)) {
-    return choice.message.content
-      .map((part) => part.text ?? "")
-      .join("")
-      .trim();
-  }
-
-  if (typeof choice.text === "string") {
-    return choice.text.trim();
-  }
-
-  return "";
-}
-
-async function createChatCompletion(input: {
+async function requestGeneration(input: {
   sourceTitle: string;
   sourceText: string;
   tone: ContentTone;
@@ -248,45 +249,22 @@ async function createChatCompletion(input: {
   platforms: ContentPlatform[];
   retryMode?: boolean;
 }) {
-  const response = await fetch(`${TOGETHER_API_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getApiKey()}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: getModelName(),
-      messages: [
-        {
-          role: "system",
-          content:
-            "Respond only with valid JSON. Do not use markdown fences. Do not include commentary before or after the JSON."
-        },
-        {
-          role: "user",
-          content: buildPrompt(input)
-        }
-      ],
-      response_format: {
-        type: "json_object"
-      },
+  const client = getClient();
+  const model = getModelName();
+
+  const response = await client.models.generateContent({
+    model,
+    contents: buildPrompt(input),
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: buildResponseJsonSchema(input.platforms),
       temperature: input.retryMode ? 0.2 : 0.5,
-      max_tokens:
-        input.lengthPreset === "long" ? 5600 : input.lengthPreset === "medium" ? 4200 : 2600
-    })
+      maxOutputTokens: input.lengthPreset === "long" ? 5600 : input.lengthPreset === "medium" ? 4200 : 2600
+    }
   });
 
-  const data = (await response.json().catch(() => null)) as TogetherChatResponse | null;
+  const rawText = extractResponseText(response);
 
-  if (!response.ok) {
-    throw new Error(data?.error?.message || `Together AI text request failed with status ${response.status}.`);
-  }
-
-  if (!data) {
-    throw new Error("Together AI returned an empty response.");
-  }
-
-  const rawText = extractResponseText(data);
   if (!rawText) {
     throw new Error("The model returned an empty response.");
   }
@@ -300,7 +278,7 @@ async function createChatCompletion(input: {
 
   return {
     outputs,
-    modelName: data.model ?? getModelName()
+    modelName: model
   };
 }
 
@@ -312,14 +290,14 @@ export async function generateRepurposedContent(input: {
   platforms: ContentPlatform[];
 }) {
   try {
-    return await createChatCompletion(input);
+    return await requestGeneration(input);
   } catch (error) {
     if (
       error instanceof Error &&
       (error.message === "The model returned malformed JSON." ||
         error.message.startsWith("The model did not return a usable"))
     ) {
-      return await createChatCompletion({
+      return await requestGeneration({
         ...input,
         retryMode: true
       });

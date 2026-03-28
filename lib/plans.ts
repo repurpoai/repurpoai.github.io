@@ -17,6 +17,8 @@ export const CONTENT_PLATFORMS = [
 export type ContentPlatform = (typeof CONTENT_PLATFORMS)[number];
 
 export const FREE_TIER_MONTHLY_LIMIT = 5;
+export const FREE_TIER_MONTHLY_IMAGE_LIMIT = 1;
+export const PLUS_TIER_MONTHLY_IMAGE_LIMIT = 5;
 
 export const TONE_META: Record<
   ContentTone,
@@ -114,22 +116,22 @@ export const PLAN_META: Record<
     priceLabel: "$0/mo",
     description: "Best for trying the product and publishing occasionally.",
     features: [
-      "5 generations per month",
+      "5 text generations per month",
+      "1 image per month",
       "Professional tone only",
       "Link, text, and YouTube input",
-      "Multi-platform generation",
-      "History saving"
+      "Multi-platform generation"
     ]
   },
   plus: {
     label: "Plus",
     badgeLabel: "Plus",
     priceLabel: "$12/mo",
-    description: "Built for creators who want faster output and visuals.",
+    description: "Built for creators who want faster output and more visuals.",
     features: [
       "Unlimited text generations",
+      "5 images per month",
       "All tones",
-      "Image generation unlocked",
       "YouTube transcript mode",
       "Multi-platform workflow"
     ]
@@ -140,9 +142,9 @@ export const PLAN_META: Record<
     priceLabel: "$24/mo",
     description: "For power users who want the full creation stack.",
     features: [
-      "Everything in Plus",
-      "Image generation unlocked",
-      "Best future upgrade path",
+      "Unlimited text generations",
+      "Unlimited images",
+      "All tones",
       "Full multi-platform workflow",
       "Premium positioning"
     ]
@@ -176,13 +178,20 @@ export function canUseTone(tier: PlanTier, tone: ContentTone) {
   return true;
 }
 
-export function isImageUnlocked(tier: PlanTier) {
-  return tier !== "free";
-}
-
 export function getMonthlyLimitForTier(tier: PlanTier, storedLimit?: number | null) {
   if (tier === "free") return storedLimit ?? FREE_TIER_MONTHLY_LIMIT;
   return null;
+}
+
+export function getImageMonthlyLimitForTier(tier: PlanTier) {
+  if (tier === "free") return FREE_TIER_MONTHLY_IMAGE_LIMIT;
+  if (tier === "plus") return PLUS_TIER_MONTHLY_IMAGE_LIMIT;
+  return null;
+}
+
+export function isImageUnlocked(tier: PlanTier) {
+  const limit = getImageMonthlyLimitForTier(tier);
+  return limit === null || limit > 0;
 }
 
 export function getMonthRange(date = new Date()) {
