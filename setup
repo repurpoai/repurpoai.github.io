@@ -3,9 +3,9 @@
 Fill these environment variables:
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-GEMINI_API_KEY
-GEMINI_MODEL
-GEMINI_IMAGE_MODEL
+TOGETHER_API_KEY
+TOGETHER_MODEL
+TOGETHER_IMAGE_MODEL
 NEXT_PUBLIC_PRO_UPGRADE_URL
 
 What NEXT_PUBLIC_PRO_UPGRADE_URL does:
@@ -57,10 +57,11 @@ set
   billing_status = 'active'
 where email = 'user@example.com';
 
-Gemini setup:
-Create the API key in Google AI Studio and place it in GEMINI_API_KEY.
-Recommended text model default: gemini-2.5-flash
-Recommended image model default: imagen-4.0-generate-001
+Together AI setup:
+Create an API key in Together AI and place it in TOGETHER_API_KEY.
+Recommended text model default: Qwen/Qwen3.5-9B
+Recommended image model default: black-forest-labs/FLUX.1-schnell-Free
+The FLUX free endpoint is useful for testing, but it has tighter rate limits than paid endpoints.
 
 2. Run instructions
 
@@ -70,9 +71,9 @@ npm install
 Create .env.local and paste:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-GEMINI_API_KEY=your-google-ai-studio-api-key
-GEMINI_MODEL=gemini-2.5-flash
-GEMINI_IMAGE_MODEL=imagen-4.0-generate-001
+TOGETHER_API_KEY=your-together-ai-api-key
+TOGETHER_MODEL=Qwen/Qwen3.5-9B
+TOGETHER_IMAGE_MODEL=black-forest-labs/FLUX.1-schnell-Free
 NEXT_PUBLIC_PRO_UPGRADE_URL=https://your-checkout-or-billing-url.com
 
 Start local dev:

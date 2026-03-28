@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { extractArticleFromUrl } from "@/lib/extract-article";
-import { generateRepurposedContent, type PlatformOutputs } from "@/lib/gemini";
+import { generateRepurposedContent, type PlatformOutputs } from "@/lib/together";
 import {
   canUseTone,
   CONTENT_PLATFORMS,

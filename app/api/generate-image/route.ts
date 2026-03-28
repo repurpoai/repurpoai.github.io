@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateImageFromPrompt } from "@/lib/gemini-image";
+import { generateImageFromPrompt } from "@/lib/together-image";
 import { isImageUnlocked } from "@/lib/plans";
 import { getViewerContext } from "@/lib/viewer";
 

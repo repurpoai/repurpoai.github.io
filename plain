@@ -36,7 +36,8 @@ user-first-ai-content-repurposer/
 │  │  ├─ middleware.ts
 │  │  └─ server.ts
 │  ├─ extract-article.ts
-│  ├─ gemini.ts
+│  ├─ together-image.ts
+│  ├─ together.ts
 │  ├─ plans.ts
 │  ├─ utils.ts
 │  └─ viewer.ts
