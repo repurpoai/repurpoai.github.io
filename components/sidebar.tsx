@@ -1,8 +1,21 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { History, Home, Image as ImageIcon, LogOut, User, Wallet } from "lucide-react";
+import {
+  FileText,
+  History,
+  Home,
+  Image as ImageIcon,
+  LogOut,
+  Menu,
+  Scale,
+  Shield,
+  User,
+  Wallet,
+  X
+} from "lucide-react";
 import { logoutAction } from "@/app/auth/actions";
 import { PlanBadge } from "@/components/plan-badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +59,24 @@ const navItems = [
   }
 ];
 
+const legalItems = [
+  {
+    href: "/privacy-policy.html",
+    label: "Privacy Policy",
+    icon: Shield
+  },
+  {
+    href: "/terms-of-service.html",
+    label: "Terms of Service",
+    icon: FileText
+  },
+  {
+    href: "/refund-policy.html",
+    label: "Refund Policy",
+    icon: Scale
+  }
+];
+
 export function Sidebar({
   userName,
   userEmail,
@@ -59,6 +90,7 @@ export function Sidebar({
   usageWindowLabel
 }: SidebarProps) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const displayName = userName?.trim() || userEmail?.split("@")[0] || "Workspace";
   const textUsagePercent =
     monthlyLimit === null ? 0 : Math.min((usedThisMonth / monthlyLimit) * 100, 100);
@@ -67,85 +99,110 @@ export function Sidebar({
       ? 0
       : Math.min((imageUsedThisMonth / imageMonthlyLimit) * 100, 100);
 
-  return (
-    <Card className="w-full border-0 bg-slate-950 p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:w-72 lg:self-start">
-      <div className="flex flex-col gap-6">
-        <div className="space-y-3">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Profile</div>
-          <div className="space-y-1">
-            <div className="text-xl font-semibold text-white">{displayName}</div>
-            {userEmail ? <div className="break-all text-sm text-slate-400">{userEmail}</div> : null}
-          </div>
-          <PlanBadge tier={tier} />
+  const activeLabel = useMemo(
+    () => navItems.find((item) => pathname === item.href)?.label ?? "Menu",
+    [pathname]
+  );
+
+  const sidebarBody = (
+    <div className="flex flex-col gap-6">
+      <div className="space-y-3">
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Profile</div>
+        <div className="space-y-1">
+          <div className="text-xl font-semibold text-white">{displayName}</div>
+          {userEmail ? <div className="break-all text-sm text-slate-400">{userEmail}</div> : null}
+        </div>
+        <PlanBadge tier={tier} />
+      </div>
+
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          {monthlyLimit === null ? (
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-white">Unlimited text generations</div>
+              <p className="text-xs text-slate-400">
+                Your current plan has no monthly text generation cap.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-sm font-medium text-white">
+                {usedThisMonth}/{monthlyLimit} text used in {usageWindowLabel}
+              </div>
+              <div className="h-2 rounded-full bg-white/10">
+                <div className="h-2 rounded-full bg-white" style={{ width: `${textUsagePercent}%` }} />
+              </div>
+              <p className="text-xs text-slate-400">
+                {remainingThisMonth} text generations remaining this month.
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            {monthlyLimit === null ? (
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-white">Unlimited text generations</div>
-                <p className="text-xs text-slate-400">
-                  Your current plan has no monthly text generation cap.
-                </p>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          {imageMonthlyLimit === null ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-white">
+                <ImageIcon className="h-4 w-4" />
+                Unlimited images
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="text-sm font-medium text-white">
-                  {usedThisMonth}/{monthlyLimit} text used in {usageWindowLabel}
-                </div>
-                <div className="h-2 rounded-full bg-white/10">
-                  <div className="h-2 rounded-full bg-white" style={{ width: `${textUsagePercent}%` }} />
-                </div>
-                <p className="text-xs text-slate-400">
-                  {remainingThisMonth} text generations remaining this month.
-                </p>
+              <p className="text-xs text-slate-400">
+                Your current plan has no monthly image cap.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-white">
+                <ImageIcon className="h-4 w-4" />
+                {imageUsedThisMonth}/{imageMonthlyLimit} images used in {usageWindowLabel}
               </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            {imageMonthlyLimit === null ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-medium text-white">
-                  <ImageIcon className="h-4 w-4" />
-                  Unlimited images
-                </div>
-                <p className="text-xs text-slate-400">
-                  Your current plan has no monthly image cap.
-                </p>
+              <div className="h-2 rounded-full bg-white/10">
+                <div className="h-2 rounded-full bg-white" style={{ width: `${imageUsagePercent}%` }} />
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-white">
-                  <ImageIcon className="h-4 w-4" />
-                  {imageUsedThisMonth}/{imageMonthlyLimit} images used in {usageWindowLabel}
-                </div>
-                <div className="h-2 rounded-full bg-white/10">
-                  <div className="h-2 rounded-full bg-white" style={{ width: `${imageUsagePercent}%` }} />
-                </div>
-                <p className="text-xs text-slate-400">
-                  {imageRemainingThisMonth} images remaining this month.
-                </p>
-              </div>
-            )}
-          </div>
+              <p className="text-xs text-slate-400">
+                {imageRemainingThisMonth} images remaining this month.
+              </p>
+            </div>
+          )}
         </div>
+      </div>
 
+      <nav className="space-y-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMenuOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition",
+                active
+                  ? "bg-white text-slate-950"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="space-y-3 border-t border-white/10 pt-4">
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Legal</div>
         <nav className="space-y-2">
-          {navItems.map((item) => {
+          {legalItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition",
-                  active
-                    ? "bg-white text-slate-950"
-                    : "text-slate-300 hover:bg-white/5 hover:text-white"
-                )}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/5 hover:text-white"
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
@@ -153,17 +210,65 @@ export function Sidebar({
             );
           })}
         </nav>
-
-        <div className="space-y-3 border-t border-white/10 pt-4">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Settings / Logout</div>
-          <form action={logoutAction}>
-            <Button type="submit" variant="secondary" className="w-full justify-start">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </form>
-        </div>
       </div>
-    </Card>
+
+      <div className="space-y-3 border-t border-white/10 pt-4">
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Settings / Logout</div>
+        <form action={logoutAction}>
+          <Button type="submit" variant="secondary" className="w-full justify-start">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="lg:hidden">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setMenuOpen(true)}
+          className="w-full justify-between rounded-2xl border border-slate-200 bg-white px-4 py-6 text-left text-slate-950 shadow-soft"
+        >
+          <span className="flex items-center gap-3 text-base font-semibold">
+            <Menu className="h-5 w-5" />
+            {activeLabel}
+          </span>
+          <PlanBadge tier={tier} />
+        </Button>
+      </div>
+
+      {menuOpen ? (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="flex-1 bg-slate-950/60 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="w-[min(88vw,22rem)] overflow-y-auto border-l border-white/10 bg-slate-950 p-4 text-slate-50 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Menu</div>
+              <button
+                type="button"
+                aria-label="Close menu"
+                className="rounded-full p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {sidebarBody}
+          </div>
+        </div>
+      ) : null}
+
+      <Card className="hidden w-full border-0 bg-slate-950 p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:block lg:w-72 lg:self-start">
+        {sidebarBody}
+      </Card>
+    </>
   );
 }
