@@ -4,8 +4,11 @@ import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 import {
   assertLoginAllowed,
+  assertTrustedOrigin,
   clearLoginFailures,
   getClientIp,
+  jsonNoStore,
+  normalizeCookieOptions,
   recordLoginFailure,
   verifyTurnstileToken
 } from "@/lib/security";
@@ -18,6 +21,11 @@ const loginSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const trustedOrigin = assertTrustedOrigin(request);
+    if (!trustedOrigin.ok) {
+      return trustedOrigin.response;
+    }
+
     const formData = await request.formData();
     const parsed = loginSchema.safeParse({
       email: formData.get("email"),
@@ -26,7 +34,7 @@ export async function POST(request: Request) {
     });
 
     if (!parsed.success) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: parsed.error.issues[0]?.message ?? "Invalid login details."
         },
@@ -39,7 +47,7 @@ export async function POST(request: Request) {
     const gate = await assertLoginAllowed(email, ip);
 
     if (!gate.allowed) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: "Too many login attempts. Try again later."
         },
@@ -55,7 +63,7 @@ export async function POST(request: Request) {
     const turnstile = await verifyTurnstileToken(captchaToken, ip);
 
     if (!turnstile.success) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: turnstile.error
         },
@@ -96,7 +104,7 @@ export async function POST(request: Request) {
       const failure = await recordLoginFailure(email, ip);
       const status = failure.blocked ? 429 : 401;
 
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: failure.blocked
             ? "Too many login attempts. Try again later."
@@ -115,14 +123,14 @@ export async function POST(request: Request) {
 
     await clearLoginFailures(email, ip);
 
-    const response = NextResponse.json({ ok: true, redirectTo: "/dashboard" });
+    const response = jsonNoStore({ ok: true, redirectTo: "/dashboard" });
     cookiesToSet.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
+      response.cookies.set(name, value, normalizeCookieOptions(options));
     });
 
     return response;
   } catch (error) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error: error instanceof Error ? error.message : "Login failed."
       },

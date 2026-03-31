@@ -46,7 +46,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} method="post" action="/api/auth/login" encType="multipart/form-data" className="space-y-4">
       <div className="space-y-2">
         <label htmlFor="login-email" className="text-sm font-medium text-slate-700">
           Email

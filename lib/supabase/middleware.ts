@@ -1,10 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { applyPrivateNoStore, normalizeCookieOptions } from "@/lib/security";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie);
+    to.cookies.set({
+      ...cookie,
+      ...normalizeCookieOptions(cookie)
+    });
   });
+
+  if (from.cookies.getAll().length > 0) {
+    applyPrivateNoStore(to);
+  }
 
   return to;
 }
@@ -34,7 +42,7 @@ export async function updateSession(request: NextRequest) {
           });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, normalizeCookieOptions(options));
           });
         }
       }
@@ -53,13 +61,17 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return copyCookies(response, NextResponse.redirect(url));
+    return copyCookies(response, applyPrivateNoStore(NextResponse.redirect(url)));
   }
 
   if (isAuthenticated && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
-    return copyCookies(response, NextResponse.redirect(url));
+    return copyCookies(response, applyPrivateNoStore(NextResponse.redirect(url)));
+  }
+
+  if (response.cookies.getAll().length > 0) {
+    applyPrivateNoStore(response);
   }
 
   return response;

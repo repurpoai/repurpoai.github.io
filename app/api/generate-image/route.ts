@@ -1,8 +1,8 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { generateImageFromPrompt } from "@/lib/cloudflare-image";
+import { assertTrustedOrigin, jsonNoStore } from "@/lib/security";
 import { getViewerContext } from "@/lib/viewer";
 
 const bodySchema = z.object({
@@ -11,17 +11,22 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const trustedOrigin = assertTrustedOrigin(request);
+  if (!trustedOrigin.ok) {
+    return trustedOrigin.response;
+  }
+
   const viewer = await getViewerContext();
 
   if (!viewer) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return jsonNoStore({ error: "Unauthorized." }, { status: 401 });
   }
 
   if (
     viewer.imageMonthlyLimit !== null &&
     viewer.imageUsedThisMonth >= viewer.imageMonthlyLimit
   ) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error:
           viewer.tier === "free"
@@ -44,7 +49,7 @@ export async function POST(request: Request) {
     const parsed = bodySchema.safeParse(json);
 
     if (!parsed.success) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: parsed.error.issues[0]?.message ?? "Invalid request." },
         { status: 400 }
       );
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
         ? null
         : Math.max(viewer.imageMonthlyLimit - imageUsedThisMonth, 0);
 
-    return NextResponse.json({
+    return jsonNoStore({
       imageDataUrl: result.dataUrl,
       model: result.model,
       usage: {
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
       warning: insertError ? "Image generated, but usage could not be saved." : null
     });
   } catch (error) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error:
           error instanceof Error

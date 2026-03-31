@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { assertTrustedOrigin, jsonNoStore } from "@/lib/security";
 import { checkoutPlanSchema, getDodoBaseUrl, getDodoPlanProductId, getDodoReturnUrl } from "@/lib/dodo";
 
 export async function POST(request: Request) {
   try {
+    const trustedOrigin = assertTrustedOrigin(request);
+    if (!trustedOrigin.ok) {
+      return trustedOrigin.response;
+    }
+
     const supabase = await createClient();
     const { data: claimsData } = await supabase.auth.getClaims();
 
@@ -11,14 +16,14 @@ export async function POST(request: Request) {
     const email = typeof claimsData?.claims?.email === "string" ? claimsData.claims.email : null;
 
     if (!userId) {
-      return NextResponse.json({ error: "Please log in before starting checkout." }, { status: 401 });
+      return jsonNoStore({ error: "Please log in before starting checkout." }, { status: 401 });
     }
 
     const body = await request.json().catch(() => null);
     const parsed = checkoutPlanSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: "Choose a valid plan." }, { status: 400 });
+      return jsonNoStore({ error: "Choose a valid plan." }, { status: 400 });
     }
 
     const plan = parsed.data.plan;
@@ -31,11 +36,11 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (profile?.tier === plan) {
-      return NextResponse.json({ error: `You are already on the ${plan} plan.` }, { status: 409 });
+      return jsonNoStore({ error: `You are already on the ${plan} plan.` }, { status: 409 });
     }
 
     if (profile?.tier === "pro" && plan === "plus") {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Your current Pro plan already includes everything in Plus." },
         { status: 409 }
       );
@@ -78,7 +83,7 @@ export async function POST(request: Request) {
       | null;
 
     if (!checkoutResponse.ok || !payload?.checkout_url) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error:
             payload?.message ||
@@ -88,9 +93,9 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ checkoutUrl: payload.checkout_url });
+    return jsonNoStore({ checkoutUrl: payload.checkout_url });
   } catch (error) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error: error instanceof Error ? error.message : "Could not start checkout."
       },

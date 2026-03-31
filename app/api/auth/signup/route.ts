@@ -1,8 +1,13 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
-import { getClientIp, verifyTurnstileToken } from "@/lib/security";
+import {
+  assertTrustedOrigin,
+  getClientIp,
+  jsonNoStore,
+  normalizeCookieOptions,
+  verifyTurnstileToken
+} from "@/lib/security";
 
 const signupSchema = z.object({
   fullName: z.string().trim().max(80, "Full name is too long.").optional(),
@@ -13,6 +18,11 @@ const signupSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const trustedOrigin = assertTrustedOrigin(request);
+    if (!trustedOrigin.ok) {
+      return trustedOrigin.response;
+    }
+
     const formData = await request.formData();
     const parsed = signupSchema.safeParse({
       fullName:
@@ -25,7 +35,7 @@ export async function POST(request: Request) {
     });
 
     if (!parsed.success) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: parsed.error.issues[0]?.message ?? "Invalid signup details."
         },
@@ -38,7 +48,7 @@ export async function POST(request: Request) {
     const turnstile = await verifyTurnstileToken(captchaToken, ip);
 
     if (!turnstile.success) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: turnstile.error
         },
@@ -81,7 +91,7 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: error.message
         },
@@ -90,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     if (!data.user) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: "Account could not be created."
         },
@@ -102,18 +112,18 @@ export async function POST(request: Request) {
       const signInResult = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInResult.error) {
-        return NextResponse.json({ ok: true, redirectTo: "/login", notice: "Account created. Log in to continue." });
+        return jsonNoStore({ ok: true, redirectTo: "/login", notice: "Account created. Log in to continue." });
       }
     }
 
-    const response = NextResponse.json({ ok: true, redirectTo: "/dashboard" });
+    const response = jsonNoStore({ ok: true, redirectTo: "/dashboard" });
     cookiesToSet.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
+      response.cookies.set(name, value, normalizeCookieOptions(options));
     });
 
     return response;
   } catch (error) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         error: error instanceof Error ? error.message : "Signup failed."
       },
