@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 function getSafeNextPath(value: string | null) {
@@ -122,12 +121,18 @@ export default function ConfirmPage() {
                   {error}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button asChild>
-                    <Link href="/login">Go to login</Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/signup">Create another account</Link>
-                  </Button>
+                  <Link
+                    href="/login"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  >
+                    Go to login
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  >
+                    Create another account
+                  </Link>
                 </div>
               </>
             ) : (
