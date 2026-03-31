@@ -5,6 +5,17 @@ import { Sidebar } from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TONE_META, type ContentTone, type LengthPreset } from "@/lib/plans";
 import { formatDateTime, getSourceLabel } from "@/lib/utils";
+
+function getCompactSourceUrl(url: string | null) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 import { getViewerContext } from "@/lib/viewer";
 import { createClient } from "@/lib/supabase/server";
 
@@ -102,38 +113,39 @@ export default async function HistoryPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {records.map((record) => {
                 const sourceLabel = getSourceLabel(record.source_title, record.source_url);
+                const compactSourceUrl = getCompactSourceUrl(record.source_url);
 
                 return (
                   <Link key={record.id} href={`/history/${record.id}`} className="block">
                     <Card className="border-0 bg-white shadow-soft transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-                      <CardHeader className="gap-5">
-                        <CardTitle className="text-2xl leading-tight text-slate-950 sm:text-3xl">
+                      <CardHeader className="gap-3 p-4 sm:gap-4 sm:p-5">
+                        <CardTitle className="text-xl font-semibold leading-snug text-slate-950 sm:text-2xl [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                           {sourceLabel}
                         </CardTitle>
 
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                          <span className="rounded-full bg-slate-100 px-5 py-2 capitalize">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 sm:text-sm">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 capitalize">
                             {record.input_mode}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-5 py-2">
+                          <span className="rounded-full bg-slate-100 px-3 py-1">
                             {TONE_META[record.tone]?.label ?? record.tone}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-5 py-2 capitalize">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 capitalize">
                             {record.length_preset}
                           </span>
                         </div>
 
-                        <p className="text-2xl text-slate-400 sm:text-3xl">
+                        <p className="text-sm text-slate-400 sm:text-base">
                           {formatDateTime(record.created_at)}
                         </p>
 
-                        {record.source_url ? (
-                          <div className="flex items-start gap-3 break-all text-xl font-medium text-slate-700 underline underline-offset-4 sm:text-2xl">
-                            <span>{record.source_url}</span>
-                            <ExternalLink className="mt-1 h-7 w-7 shrink-0 text-slate-500" />
+                        {compactSourceUrl ? (
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-600 sm:text-base">
+                            <span className="min-w-0 truncate underline underline-offset-4">{compactSourceUrl}</span>
+                            <ExternalLink className="h-4 w-4 shrink-0 text-slate-500 sm:h-5 sm:w-5" />
                           </div>
                         ) : null}
                       </CardHeader>
