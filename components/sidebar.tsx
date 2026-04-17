@@ -259,15 +259,15 @@ export function Sidebar({
       </div>
 
       {menuOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close menu"
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="relative mt-14 w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 p-4 text-slate-50 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="absolute inset-y-0 left-0 flex h-full w-[min(88vw,23rem)] max-w-full flex-col overflow-hidden border-r border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_32%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] text-slate-50 shadow-[20px_0_50px_rgba(15,23,42,0.45)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Menu</div>
                 <div className="mt-1 text-lg font-semibold text-white">Navigation</div>
@@ -281,12 +281,14 @@ export function Sidebar({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {sidebarBody}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {sidebarBody}
+            </div>
           </div>
         </div>
       ) : null}
 
-      <Card className="hidden w-full border-0 bg-slate-950 p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:block lg:w-72 lg:self-start">
+      <Card className="hidden w-full border-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_35%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:block lg:max-h-[calc(100dvh-3rem)] lg:w-72 lg:self-start lg:overflow-y-auto">
         {sidebarBody}
       </Card>
     </>

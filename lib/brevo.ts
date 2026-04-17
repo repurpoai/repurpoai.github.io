@@ -12,7 +12,7 @@ type SendEmailInput = {
 };
 
 type SendEmailResult =
-  | { ok: true }
+  | { ok: true; messageId?: string | null }
   | { ok: false; reason: string };
 
 async function readBrevoError(response: Response) {
@@ -88,7 +88,15 @@ export async function sendTransactionalEmail(input: SendEmailInput): Promise<Sen
       return { ok: false, reason: await readBrevoError(response) };
     }
 
-    return { ok: true };
+    let messageId: string | null = null;
+    try {
+      const payload = (await response.json()) as { messageId?: string | null; messageIdString?: string | null };
+      messageId = payload.messageId ?? payload.messageIdString ?? null;
+    } catch {
+      messageId = null;
+    }
+
+    return { ok: true, messageId };
   } catch {
     return {
       ok: false,

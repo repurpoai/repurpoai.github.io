@@ -23,6 +23,10 @@ function redirectWithFlash(flash: string, detail?: string) {
   redirect(`/admin?${query.toString()}`);
 }
 
+function brevoSuccessDetail(messageId?: string | null) {
+  return messageId ? `Queued via Brevo (message id: ${messageId}).` : "Queued via Brevo.";
+}
+
 async function resolveUserContact(
   supabase: ReturnType<typeof createAdminClient>,
   userId: string,
@@ -188,6 +192,6 @@ export async function blockUserAction(formData: FormData) {
       : emailResult.ok
         ? "user_unblocked_email_sent"
         : "user_unblocked_email_failed",
-    emailResult.ok ? undefined : emailResult.reason
+    emailResult.ok ? brevoSuccessDetail(emailResult.messageId) : emailResult.reason
   );
 }

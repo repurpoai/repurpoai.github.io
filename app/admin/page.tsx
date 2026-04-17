@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatDateTime } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ const flashMessages: Record<string, { title: string; message: string; tone: "suc
   },
   role_updated: {
     title: "Saved",
-    message: "User role updated successfully.",
+    message: "User role updated. Email was queued through Brevo.",
     tone: "success"
   },
   role_updated_email_failed: {
@@ -27,7 +28,7 @@ const flashMessages: Record<string, { title: string; message: string; tone: "suc
   },
   user_blocked_email_sent: {
     title: "Saved",
-    message: "User was blocked and the email was sent.",
+    message: "User was blocked. Email was queued through Brevo.",
     tone: "success"
   },
   user_blocked_email_failed: {
@@ -37,7 +38,7 @@ const flashMessages: Record<string, { title: string; message: string; tone: "suc
   },
   user_unblocked_email_sent: {
     title: "Saved",
-    message: "User was unblocked and the email was sent.",
+    message: "User was unblocked. Email was queued through Brevo.",
     tone: "success"
   },
   user_unblocked_email_failed: {
@@ -53,8 +54,10 @@ export default async function AdminPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const viewer = await requireAdmin();
-  const data = await getAdminDashboardData();
   const params = (await searchParams) ?? {};
+  const logPageValue = typeof params.log_page === "string" ? Number(params.log_page) : 1;
+  const logPage = Number.isFinite(logPageValue) && logPageValue > 0 ? Math.floor(logPageValue) : 1;
+  const data = await getAdminDashboardData(logPage);
   const flash = typeof params.flash === "string" ? params.flash : null;
   const detail = typeof params.detail === "string" ? params.detail : null;
   const flashInfo = flash ? flashMessages[flash] : null;
@@ -118,7 +121,7 @@ export default async function AdminPage({
                 <div className="mt-1 text-2xl font-semibold text-white">{data.profiles.filter((p) => p.is_blocked).length}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                <div className="text-sm text-slate-400">Logs</div>
+                <div className="text-sm text-slate-400">Logs on page</div>
                 <div className="mt-1 text-2xl font-semibold text-white">{data.logs.length}</div>
               </div>
             </CardContent>
@@ -193,8 +196,33 @@ export default async function AdminPage({
 
         <Card className="border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
           <CardHeader>
-            <CardTitle className="text-white">Recent activity</CardTitle>
-            <CardDescription className="text-slate-300">Latest admin and user events.</CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-white">Recent activity</CardTitle>
+                <CardDescription className="text-slate-300">Latest admin and user events.</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {data.logPage > 1 ? (
+                  <Link
+                    href={`/admin?log_page=${data.logPage - 1}`}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+                  >
+                    Previous
+                  </Link>
+                ) : null}
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200">
+                  Page {data.logPage}
+                </div>
+                {data.hasMoreLogs ? (
+                  <Link
+                    href={`/admin?log_page=${data.logPage + 1}`}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+                  >
+                    Next
+                  </Link>
+                ) : null}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.logs.length === 0 ? (

@@ -40,8 +40,13 @@ export async function requireAdmin(): Promise<ViewerContext> {
   return adminViewer;
 }
 
-export async function getAdminDashboardData() {
+const LOG_PAGE_SIZE = 20;
+
+export async function getAdminDashboardData(logPage = 1) {
   const admin = createAdminClient();
+  const normalizedPage = Number.isFinite(logPage) && logPage > 0 ? Math.floor(logPage) : 1;
+  const logOffset = (normalizedPage - 1) * LOG_PAGE_SIZE;
+  const logLimit = LOG_PAGE_SIZE + 1;
 
   const [{ data: profiles }, { data: logs }, { data: settings }] = await Promise.all([
     admin
@@ -52,7 +57,7 @@ export async function getAdminDashboardData() {
       .from("user_logs")
       .select("id, actor_user_id, target_user_id, action, metadata, created_at")
       .order("created_at", { ascending: false })
-      .limit(25),
+      .range(logOffset, logOffset + logLimit - 1),
     admin
       .from("app_settings")
       .select("maintenance_mode, maintenance_message, allow_admin")
@@ -60,9 +65,14 @@ export async function getAdminDashboardData() {
       .maybeSingle()
   ]);
 
+  const pagedLogs = (logs ?? []) as AdminLogRow[];
+  const hasMoreLogs = pagedLogs.length > LOG_PAGE_SIZE;
+
   return {
     profiles: (profiles ?? []) as AdminProfileRow[],
-    logs: (logs ?? []) as AdminLogRow[],
+    logs: hasMoreLogs ? pagedLogs.slice(0, LOG_PAGE_SIZE) : pagedLogs,
+    logPage: normalizedPage,
+    hasMoreLogs,
     settings: {
       maintenance_mode: Boolean(settings?.maintenance_mode),
       maintenance_message: typeof settings?.maintenance_message === "string" ? settings.maintenance_message : null,
