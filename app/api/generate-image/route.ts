@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateImageFromPrompt } from "@/lib/cloudflare-image";
 import { assertTrustedOrigin, jsonNoStore } from "@/lib/http-security";
 import { getViewerContext } from "@/lib/viewer";
+import { logActivity } from "@/lib/activity";
 
 const bodySchema = z.object({
   prompt: z.string().trim().min(1, "Prompt is required."),
@@ -71,6 +72,15 @@ export async function POST(request: Request) {
     if (!insertError) {
       revalidatePath("/dashboard");
       revalidatePath("/profile");
+
+      await logActivity({
+        actorUserId: viewer.userId,
+        action: "image_generation_success",
+        metadata: {
+          aspectRatio: parsed.data.aspectRatio ?? "1:1",
+          model: result.model
+        }
+      });
     }
 
     const imageUsedThisMonth = insertError

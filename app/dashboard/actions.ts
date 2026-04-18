@@ -18,6 +18,7 @@ import {
 import { countWords, sanitizeSourceText } from "@/lib/utils";
 import { getViewerContext, type ViewerContext } from "@/lib/viewer";
 import { extractYouTubeTranscript } from "@/lib/youtube";
+import { logActivity } from "@/lib/activity";
 
 type InputMode = "link" | "text" | "youtube";
 
@@ -260,6 +261,18 @@ export async function generateContentAction(
     revalidatePath("/history");
     revalidatePath("/dashboard");
     revalidatePath("/profile");
+
+    await logActivity({
+      actorUserId: viewer.userId,
+      action: "generation_success",
+      metadata: {
+        mode,
+        tone,
+        lengthPreset,
+        selectedPlatforms,
+        sourceKind: sourceMeta.kind ?? null
+      }
+    });
 
     const usedThisMonth = insertError ? viewer.usedThisMonth : viewer.usedThisMonth + 1;
     const remainingThisMonth =

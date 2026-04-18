@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   const upgradeHref = "/pricing";
 
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-6">
         <div className="rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_35%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] px-4 py-4 text-slate-50 shadow-soft">
           <SiteHeader

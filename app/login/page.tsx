@@ -18,7 +18,7 @@ export default async function LoginPage() {
     <PageShell>
       <SiteHeader className="mb-6" links={[{ href: "/", label: "Home" }, { href: "/pricing", label: "Pricing" }, { href: "/signup", label: "Sign up" }]} />
 
-      <section className="grid flex-1 items-center gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
+      <section className="grid flex-1 items-center justify-items-center gap-8 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:justify-items-stretch lg:gap-12">
         <div className="hidden space-y-5 lg:block">
           <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-200">
             Welcome back
@@ -31,7 +31,7 @@ export default async function LoginPage() {
           </p>
         </div>
 
-        <Card className="border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
+        <Card className="w-full max-w-md border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur lg:max-w-none">
           <CardHeader>
             <CardTitle className="text-2xl text-white">Log in</CardTitle>
             <CardDescription className="text-slate-300">
