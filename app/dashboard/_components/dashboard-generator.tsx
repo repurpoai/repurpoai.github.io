@@ -118,6 +118,7 @@ export function DashboardGenerator({
     imageRemainingThisMonth,
     usageWindowLabel
   });
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const storageKey = "repurpo-generation-draft-v2";
 
   const usage = state.usage ?? {
@@ -162,7 +163,10 @@ export function DashboardGenerator({
 
     try {
       const saved = window.localStorage.getItem(storageKey);
-      if (!saved) return;
+      if (!saved) {
+        setDraftHydrated(true);
+        return;
+      }
 
       const parsed = JSON.parse(saved) as {
         mode?: "link" | "text" | "youtube";
@@ -191,11 +195,13 @@ export function DashboardGenerator({
       if (parsed.imageAspectRatio) setImageAspectRatio(parsed.imageAspectRatio);
     } catch {
       // ignore bad drafts
+    } finally {
+      setDraftHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !draftHydrated) return;
 
     window.localStorage.setItem(
       storageKey,
@@ -211,7 +217,7 @@ export function DashboardGenerator({
         imageAspectRatio
       })
     );
-  }, [imageAspectRatio, imagePrompt, lengthPreset, mode, selectedPlatforms, text, tone, url, youtubeUrl]);
+  }, [draftHydrated, imageAspectRatio, imagePrompt, lengthPreset, mode, selectedPlatforms, text, tone, url, youtubeUrl]);
 
   useEffect(() => {
     if (!state.data) return;
@@ -330,8 +336,8 @@ export function DashboardGenerator({
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <CardTitle>Plan & usage</CardTitle>
-              <CardDescription>Limits are enforced on the server.</CardDescription>
+              <CardTitle className="text-white">Plan & usage</CardTitle>
+              <CardDescription className="text-slate-300">Limits are enforced on the server.</CardDescription>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100">
@@ -390,8 +396,8 @@ export function DashboardGenerator({
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>Input mode</CardTitle>
-              <CardDescription>Article, pasted text, or YouTube transcript.</CardDescription>
+              <CardTitle className="text-white">Input mode</CardTitle>
+              <CardDescription className="text-slate-300">Article, pasted text, or YouTube transcript.</CardDescription>
             </div>
 
             <div className="inline-flex rounded-xl bg-white/10 p-1">
@@ -400,8 +406,8 @@ export function DashboardGenerator({
                 onClick={() => setMode("link")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "link"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-300 hover:text-white"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 Link
@@ -411,8 +417,8 @@ export function DashboardGenerator({
                 onClick={() => setMode("text")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "text"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-300 hover:text-white"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 Text
@@ -422,8 +428,8 @@ export function DashboardGenerator({
                 onClick={() => setMode("youtube")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "youtube"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-300 hover:text-white"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 YouTube
@@ -452,10 +458,10 @@ export function DashboardGenerator({
                   return (
                     <label
                       key={platformKey}
-                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                      className={`group flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                         checked
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-white/10 bg-white/5 text-slate-100 hover:border-white/20 hover:bg-white/10"
+                          ? "border-emerald-400/70 bg-emerald-400/10 text-white shadow-[0_0_0_1px_rgba(52,211,153,0.25),0_12px_35px_-18px_rgba(16,185,129,0.55)] ring-1 ring-emerald-400/35"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/30 hover:bg-white/10 hover:shadow-[0_12px_30px_-20px_rgba(15,23,42,0.65)]"
                       }`}
                     >
                       <input
@@ -662,8 +668,8 @@ export function DashboardGenerator({
             <div className="space-y-4">
               <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                 <CardHeader className="gap-2">
-                  <CardTitle>Latest result</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-white">Latest result</CardTitle>
+                  <CardDescription className="text-slate-300">
                     {result.inputMode} • {TONE_META[result.tone].label} • {LENGTH_META[result.lengthPreset].label}
                   </CardDescription>
                   <div className="text-sm font-medium text-white">{result.sourceTitle}</div>
@@ -690,11 +696,11 @@ export function DashboardGenerator({
                   <Card key={platform} className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                     <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-white">
                           <Icon className="h-5 w-5" />
                           {PLATFORM_META[platform].label}
                         </CardTitle>
-                        <CardDescription>{PLATFORM_META[platform].description}</CardDescription>
+                        <CardDescription className="text-slate-300">{PLATFORM_META[platform].description}</CardDescription>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -726,11 +732,11 @@ export function DashboardGenerator({
               <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                 <CardHeader className="flex flex-row items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-white">
                       <FileImage className="h-5 w-5" />
                       Matching image
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-slate-300">
                       Generate a matching visual directly inside Repurpo with your monthly image allowance.
                     </CardDescription>
                   </div>
