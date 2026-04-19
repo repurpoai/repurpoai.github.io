@@ -31,48 +31,79 @@ export async function requireAdmin(): Promise<ViewerContext> {
     redirect("/login");
   }
 
-  const adminViewer = viewer as ViewerContext;
-
-  if (adminViewer.role !== "admin") {
+  if (viewer.role !== "admin") {
     redirect("/dashboard");
   }
 
-  return adminViewer;
+  return viewer;
 }
 
-const LOG_PAGE_SIZE = 20;
+const USER_PAGE_SIZE = 8;
+const LOG_PAGE_SIZE = 8;
 
-export async function getAdminDashboardData(logPage = 1) {
+function normalizePage(value: number | undefined, fallback = 1) {
+  const page = Number.isFinite(value ?? NaN) ? Math.floor(value ?? 0) : fallback;
+  return Math.max(page || fallback, 1);
+}
+
+function sanitizeSearch(query: string) {
+  return query.trim().replace(/[%(),]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export async function getAdminDashboardData(options?: {
+  userPage?: number;
+  logPage?: number;
+  query?: string;
+  userId?: string | null;
+}) {
   const admin = createAdminClient();
-  const normalizedPage = Number.isFinite(logPage) && logPage > 0 ? Math.floor(logPage) : 1;
-  const logOffset = (normalizedPage - 1) * LOG_PAGE_SIZE;
-  const logLimit = LOG_PAGE_SIZE + 1;
+  const userPage = normalizePage(options?.userPage);
+  const logPage = normalizePage(options?.logPage);
+  const query = options?.query?.trim() ?? "";
+  const selectedUserId = options?.userId?.trim() || null;
+  const userOffset = (userPage - 1) * USER_PAGE_SIZE;
+  const logOffset = (logPage - 1) * LOG_PAGE_SIZE;
+  const safeSearch = sanitizeSearch(query);
 
-  const [{ data: profiles }, { data: logs }, { data: settings }] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("id, email, full_name, role, tier, is_blocked, block_reason, blocked_until, created_at, updated_at")
-      .order("created_at", { ascending: false }),
-    admin
-      .from("user_logs")
-      .select("id, actor_user_id, target_user_id, action, metadata, created_at")
-      .order("created_at", { ascending: false })
-      .range(logOffset, logOffset + logLimit - 1),
+  let profileQuery = admin
+    .from("profiles")
+    .select("id, email, full_name, role, tier, is_blocked, block_reason, blocked_until, created_at, updated_at");
+
+  if (safeSearch) {
+    profileQuery = profileQuery.or(`email.ilike.%${safeSearch}%,full_name.ilike.%${safeSearch}%`);
+  }
+
+  let logQuery = admin
+    .from("user_logs")
+    .select("id, actor_user_id, target_user_id, action, metadata, created_at");
+
+  if (selectedUserId) {
+    logQuery = logQuery.or(`actor_user_id.eq.${selectedUserId},target_user_id.eq.${selectedUserId}`);
+  }
+
+  const [{ data: profilesRaw }, { data: logsRaw }, { data: settings }, { count: totalUsersResult }] = await Promise.all([
+    profileQuery.order("created_at", { ascending: false }).range(userOffset, userOffset + USER_PAGE_SIZE),
+    logQuery.order("created_at", { ascending: false }).range(logOffset, logOffset + LOG_PAGE_SIZE),
     admin
       .from("app_settings")
       .select("maintenance_mode, maintenance_message, allow_admin")
       .eq("id", 1)
-      .maybeSingle()
+      .maybeSingle(),
+    admin.from("profiles").select("id", { count: "exact", head: true })
   ]);
 
-  const pagedLogs = (logs ?? []) as AdminLogRow[];
-  const hasMoreLogs = pagedLogs.length > LOG_PAGE_SIZE;
+  const profiles = (profilesRaw ?? []) as AdminProfileRow[];
+  const logs = (logsRaw ?? []) as AdminLogRow[];
 
   return {
-    profiles: (profiles ?? []) as AdminProfileRow[],
-    logs: hasMoreLogs ? pagedLogs.slice(0, LOG_PAGE_SIZE) : pagedLogs,
-    logPage: normalizedPage,
-    hasMoreLogs,
+    profiles: profiles.slice(0, USER_PAGE_SIZE),
+    logs: logs.slice(0, LOG_PAGE_SIZE),
+    totalUsers: totalUsersResult ?? profiles.length,
+    userPage,
+    logPage,
+    hasMoreUsers: profiles.length > USER_PAGE_SIZE,
+    hasMoreLogs: logs.length > LOG_PAGE_SIZE,
+    selectedUserId,
     settings: {
       maintenance_mode: Boolean(settings?.maintenance_mode),
       maintenance_message: typeof settings?.maintenance_message === "string" ? settings.maintenance_message : null,

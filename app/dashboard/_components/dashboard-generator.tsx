@@ -118,6 +118,8 @@ export function DashboardGenerator({
     imageRemainingThisMonth,
     usageWindowLabel
   });
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const storageKey = "repurpo-generation-draft-v2";
 
   const usage = state.usage ?? {
     tier,
@@ -155,6 +157,67 @@ export function DashboardGenerator({
         : [...current, platform]
     );
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (!saved) {
+        setDraftHydrated(true);
+        return;
+      }
+
+      const parsed = JSON.parse(saved) as {
+        mode?: "link" | "text" | "youtube";
+        tone?: ContentTone;
+        lengthPreset?: LengthPreset;
+        selectedPlatforms?: ContentPlatform[];
+        url?: string;
+        youtubeUrl?: string;
+        text?: string;
+        imagePrompt?: string;
+        imageAspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
+      };
+
+      if (parsed.mode === "link" || parsed.mode === "text" || parsed.mode === "youtube") {
+        setMode(parsed.mode);
+      }
+      if (parsed.tone) setTone(parsed.tone);
+      if (parsed.lengthPreset) setLengthPreset(parsed.lengthPreset);
+      if (Array.isArray(parsed.selectedPlatforms) && parsed.selectedPlatforms.length > 0) {
+        setSelectedPlatforms(parsed.selectedPlatforms);
+      }
+      if (typeof parsed.url === "string") setUrl(parsed.url);
+      if (typeof parsed.youtubeUrl === "string") setYoutubeUrl(parsed.youtubeUrl);
+      if (typeof parsed.text === "string") setText(parsed.text);
+      if (typeof parsed.imagePrompt === "string") setImagePrompt(parsed.imagePrompt);
+      if (parsed.imageAspectRatio) setImageAspectRatio(parsed.imageAspectRatio);
+    } catch {
+      // ignore bad drafts
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !draftHydrated) return;
+
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        mode,
+        tone,
+        lengthPreset,
+        selectedPlatforms,
+        url,
+        youtubeUrl,
+        text,
+        imagePrompt,
+        imageAspectRatio
+      })
+    );
+  }, [draftHydrated, imageAspectRatio, imagePrompt, lengthPreset, mode, selectedPlatforms, text, tone, url, youtubeUrl]);
 
   useEffect(() => {
     if (!state.data) return;
@@ -269,82 +332,22 @@ export function DashboardGenerator({
         </CardHeader>
       </Card>
 
-      <Card className="border-0 bg-white shadow-soft">
-        <CardHeader className="gap-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <CardTitle>Plan & usage</CardTitle>
-              <CardDescription>Limits are enforced on the server.</CardDescription>
-            </div>
-
-            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
-              <div className="space-y-2">
-                {usage.monthlyLimit === null ? (
-                  <div className="flex items-center gap-2 font-medium">
-                    <Crown className="h-4 w-4" />
-                    {currentTier === "plus" ? "Plus" : "Pro"} plan • Unlimited text generations
-                  </div>
-                ) : (
-                  <>
-                    <div className="font-medium">
-                      Free plan • {usage.usedThisMonth}/{usage.monthlyLimit} text used in {usage.usageWindowLabel}
-                    </div>
-                    <div className="h-2 w-56 rounded-full bg-slate-200">
-                      <div
-                        className="h-2 rounded-full bg-slate-900 transition-all"
-                        style={{ width: `${usagePercent}%` }}
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="text-xs text-slate-500">
-                  {imageUsage.imageMonthlyLimit === null
-                    ? "Image quota: unlimited"
-                    : `Image quota: ${imageUsage.imageUsedThisMonth}/${imageUsage.imageMonthlyLimit} used`}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {usage.monthlyLimit !== null ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-slate-900">
-                    {usage.remainingThisMonth} generations remaining this month
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    Upgrade to Plus or Pro to unlock all tones and higher image limits.
-                  </p>
-                </div>
-                <a
-                  href={upgradeHref}
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
-                >
-                  Upgrade
-                </a>
-              </div>
-            </div>
-          ) : null}
-        </CardHeader>
-      </Card>
-
-      <Card className="border-0 bg-white shadow-soft">
+      <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>Input mode</CardTitle>
-              <CardDescription>Article, pasted text, or YouTube transcript.</CardDescription>
+              <CardTitle className="text-white">Input mode</CardTitle>
+              <CardDescription className="text-slate-300">Article, pasted text, or YouTube transcript.</CardDescription>
             </div>
 
-            <div className="inline-flex rounded-xl bg-slate-100 p-1">
+            <div className="inline-flex rounded-xl bg-white/10 p-1">
               <button
                 type="button"
                 onClick={() => setMode("link")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "link"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 Link
@@ -354,8 +357,8 @@ export function DashboardGenerator({
                 onClick={() => setMode("text")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "text"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 Text
@@ -365,8 +368,8 @@ export function DashboardGenerator({
                 onClick={() => setMode("youtube")}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                   mode === "youtube"
-                    ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-slate-50 text-slate-950 shadow-md shadow-black/20"
+                    : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 YouTube
@@ -383,8 +386,8 @@ export function DashboardGenerator({
 
             <div className="space-y-3">
               <div>
-                <h3 className="text-sm font-medium text-slate-900">Select platforms</h3>
-                <p className="text-sm text-slate-500">Generate only the outputs you want.</p>
+                <h3 className="text-sm font-medium text-white">Select platforms</h3>
+                <p className="text-sm text-slate-400">Generate only the outputs you want.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -395,10 +398,10 @@ export function DashboardGenerator({
                   return (
                     <label
                       key={platformKey}
-                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                      className={`group flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                         checked
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+                          ? "border-emerald-400/70 bg-emerald-400/10 text-white shadow-[0_0_0_1px_rgba(52,211,153,0.25),0_12px_35px_-18px_rgba(16,185,129,0.55)] ring-1 ring-emerald-400/35"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/30 hover:bg-white/10 hover:shadow-[0_12px_30px_-20px_rgba(15,23,42,0.65)]"
                       }`}
                     >
                       <input
@@ -414,7 +417,7 @@ export function DashboardGenerator({
                           <Icon className="h-4 w-4" />
                           {meta.label}
                         </div>
-                        <p className={`text-sm ${checked ? "text-slate-200" : "text-slate-500"}`}>
+                        <p className={`text-sm ${checked ? "text-slate-200" : "text-slate-400"}`}>
                           {meta.description}
                         </p>
                       </div>
@@ -426,8 +429,8 @@ export function DashboardGenerator({
 
             <div className="space-y-3">
               <div>
-                <h3 className="text-sm font-medium text-slate-900">Tone</h3>
-                <p className="text-sm text-slate-500">
+                <h3 className="text-sm font-medium text-white">Tone</h3>
+                <p className="text-sm text-slate-400">
                   Free stays on Professional. Paid plans unlock the rest.
                 </p>
               </div>
@@ -445,10 +448,10 @@ export function DashboardGenerator({
                       onClick={() => setTone(toneKey)}
                       className={`rounded-xl border p-4 text-left transition ${
                         active
-                          ? "border-slate-950 bg-slate-950 text-white"
+                          ? "border-emerald-400/20 bg-emerald-400/10 text-white"
                           : locked
-                          ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-                          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+                          ? "cursor-not-allowed border-white/10 bg-slate-950/60 text-slate-400"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-white/20 hover:bg-white/10"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -459,7 +462,7 @@ export function DashboardGenerator({
                           <CheckCircle2 className="h-4 w-4" />
                         ) : null}
                       </div>
-                      <p className={`mt-2 text-sm ${active ? "text-slate-200" : locked ? "text-slate-400" : "text-slate-500"}`}>
+                      <p className={`mt-2 text-sm ${active ? "text-slate-200" : locked ? "text-slate-400" : "text-slate-400"}`}>
                         {meta.description}
                       </p>
                     </button>
@@ -470,8 +473,8 @@ export function DashboardGenerator({
 
             <div className="space-y-3">
               <div>
-                <h3 className="text-sm font-medium text-slate-900">Length</h3>
-                <p className="text-sm text-slate-500">
+                <h3 className="text-sm font-medium text-white">Length</h3>
+                <p className="text-sm text-slate-400">
                   Control how compact or expanded the output should feel.
                 </p>
               </div>
@@ -487,12 +490,12 @@ export function DashboardGenerator({
                       onClick={() => setLengthPreset(presetKey)}
                       className={`rounded-xl border p-4 text-left transition ${
                         active
-                          ? "border-slate-950 bg-slate-950 text-white"
-                          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+                          ? "border-emerald-400/20 bg-emerald-400/10 text-white"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-white/20 hover:bg-white/10"
                       }`}
                     >
                       <div className="font-medium">{meta.label}</div>
-                      <p className={`mt-2 text-sm ${active ? "text-slate-200" : "text-slate-500"}`}>
+                      <p className={`mt-2 text-sm ${active ? "text-slate-200" : "text-slate-400"}`}>
                         {meta.description}
                       </p>
                     </button>
@@ -503,7 +506,7 @@ export function DashboardGenerator({
 
             {mode === "link" ? (
               <div className="space-y-2">
-                <label htmlFor="source-url" className="text-sm font-medium text-slate-700">
+                <label htmlFor="source-url" className="text-sm font-medium text-slate-300">
                   Article URL
                 </label>
                 <Input
@@ -519,7 +522,7 @@ export function DashboardGenerator({
               </div>
             ) : mode === "youtube" ? (
               <div className="space-y-2">
-                <label htmlFor="youtube-url" className="text-sm font-medium text-slate-700">
+                <label htmlFor="youtube-url" className="text-sm font-medium text-slate-300">
                   YouTube URL
                 </label>
                 <div className="relative">
@@ -536,17 +539,17 @@ export function DashboardGenerator({
                     className="pl-9"
                   />
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-400">
                   The app fetches the transcript first, then generates platform-specific content from it.
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-4">
-                  <label htmlFor="source-text" className="text-sm font-medium text-slate-700">
+                  <label htmlFor="source-text" className="text-sm font-medium text-slate-300">
                     Source text
                   </label>
-                  <span className={`text-sm ${wordCount > TEXT_LIMIT ? "text-red-600" : "text-slate-500"}`}>
+                  <span className={`text-sm ${wordCount > TEXT_LIMIT ? "text-red-600" : "text-slate-400"}`}>
                     {wordCount}/{TEXT_LIMIT} words
                   </span>
                 </div>
@@ -564,7 +567,7 @@ export function DashboardGenerator({
             )}
 
             {state.error ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
                 {state.error}
               </div>
             ) : null}
@@ -589,8 +592,8 @@ export function DashboardGenerator({
       </Card>
 
       {pending ? (
-        <Card className="border-0 bg-white shadow-soft">
-          <CardContent className="flex items-center gap-3 py-6 text-slate-700">
+        <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
+          <CardContent className="flex items-center gap-3 py-6 text-slate-300">
             <LoaderCircle className="h-5 w-5 animate-spin" />
             Building your selected platform outputs...
           </CardContent>
@@ -603,19 +606,19 @@ export function DashboardGenerator({
 
           return (
             <div className="space-y-4">
-              <Card className="border-0 bg-white shadow-soft">
+              <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                 <CardHeader className="gap-2">
-                  <CardTitle>Latest result</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-white">Latest result</CardTitle>
+                  <CardDescription className="text-slate-300">
                     {result.inputMode} • {TONE_META[result.tone].label} • {LENGTH_META[result.lengthPreset].label}
                   </CardDescription>
-                  <div className="text-sm font-medium text-slate-900">{result.sourceTitle}</div>
+                  <div className="text-sm font-medium text-white">{result.sourceTitle}</div>
                   {result.sourceUrl ? (
                     <a
                       href={result.sourceUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="break-all text-sm font-medium text-slate-700 underline underline-offset-4"
+                      className="break-all text-sm font-medium text-slate-300 underline underline-offset-4"
                     >
                       {result.sourceUrl}
                     </a>
@@ -630,14 +633,14 @@ export function DashboardGenerator({
                 const Icon = platformIcons[platform];
 
                 return (
-                  <Card key={platform} className="border-0 bg-white shadow-soft">
+                  <Card key={platform} className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                     <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-white">
                           <Icon className="h-5 w-5" />
                           {PLATFORM_META[platform].label}
                         </CardTitle>
-                        <CardDescription>{PLATFORM_META[platform].description}</CardDescription>
+                        <CardDescription className="text-slate-300">{PLATFORM_META[platform].description}</CardDescription>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -658,7 +661,7 @@ export function DashboardGenerator({
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                      <div className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
                         {textValue}
                       </div>
                     </CardContent>
@@ -666,20 +669,20 @@ export function DashboardGenerator({
                 );
               })}
 
-              <Card className="border-0 bg-white shadow-soft">
+              <Card className="border border-white/10 bg-white/5 text-slate-50 shadow-soft backdrop-blur">
                 <CardHeader className="flex flex-row items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-white">
                       <FileImage className="h-5 w-5" />
                       Matching image
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-slate-300">
                       Generate a matching visual directly inside Repurpo with your monthly image allowance.
                     </CardDescription>
                   </div>
                   <a
                     href={upgradeHref}
-                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-medium text-white transition hover:bg-slate-950/60"
                   >
                     View plans
                   </a>
@@ -687,16 +690,16 @@ export function DashboardGenerator({
 
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                      <div className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-slate-300">
                         Free gets 1 image per month, Plus gets 5 per month, and Pro gets unlimited images.
                       </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                      <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
                         Generated images are temporary and do not appear in history yet. Download them before leaving this page.
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="image-prompt" className="text-sm font-medium text-slate-700">
+                        <label htmlFor="image-prompt" className="text-sm font-medium text-slate-300">
                           Image prompt
                         </label>
                         <Textarea
@@ -709,7 +712,7 @@ export function DashboardGenerator({
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="image-ratio" className="text-sm font-medium text-slate-700">
+                        <label htmlFor="image-ratio" className="text-sm font-medium text-slate-300">
                           Aspect ratio
                         </label>
                         <select
@@ -720,7 +723,7 @@ export function DashboardGenerator({
                               event.target.value as "1:1" | "3:4" | "4:3" | "9:16" | "16:9"
                             )
                           }
-                          className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                          className="flex h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-50 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
                         >
                           <option value="1:1">1:1</option>
                           <option value="3:4">3:4</option>
@@ -730,14 +733,14 @@ export function DashboardGenerator({
                         </select>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                      <div className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
                         {imageUsage.imageMonthlyLimit === null
                           ? `Unlimited images on ${currentTier === "pro" ? "Pro" : "your plan"}.`
                           : `${imageUsage.imageUsedThisMonth}/${imageUsage.imageMonthlyLimit} images used in ${imageUsage.usageWindowLabel}. ${imageUsage.imageRemainingThisMonth} remaining.`}
                       </div>
 
                       {imageError ? (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
                           {imageError}
                         </div>
                       ) : null}
@@ -758,7 +761,7 @@ export function DashboardGenerator({
 
                     {imageUrl ? (
                       <div className="space-y-3">
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-950/60 p-3">
                           <Image
                             src={imageUrl}
                             alt="Generated visual"

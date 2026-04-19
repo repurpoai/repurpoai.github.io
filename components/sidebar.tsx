@@ -244,13 +244,12 @@ export function Sidebar({
       <div className="lg:hidden">
         <Button
           type="button"
-          variant="secondary"
           onClick={() => setMenuOpen(true)}
-          className="w-full justify-between rounded-2xl border border-slate-200 bg-white px-4 py-5 text-left text-slate-950 shadow-soft"
+          className="w-full justify-between rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.95)_0%,rgba(2,6,23,0.98)_100%)] px-4 py-5 text-left text-white shadow-[0_18px_45px_-24px_rgba(15,23,42,0.9)] ring-1 ring-white/5"
         >
           <span className="flex items-center gap-3 text-base font-semibold">
-            <Menu className="h-5 w-5" />
-            {activeLabel}
+            <Menu className="h-5 w-5 text-slate-100" />
+            <span className="text-white">{activeLabel}</span>
           </span>
           <span className="flex items-center gap-2">
             <PlanBadge tier={tier} />
@@ -266,7 +265,7 @@ export function Sidebar({
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex h-full w-[min(88vw,23rem)] max-w-full flex-col overflow-hidden border-r border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_32%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] text-slate-50 shadow-[20px_0_50px_rgba(15,23,42,0.45)]">
+          <div className="absolute inset-y-0 left-0 flex h-full w-[min(88vw,23rem)] max-w-full flex-col overflow-hidden border-r border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_25%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] text-slate-50 shadow-[20px_0_50px_rgba(15,23,42,0.5)]">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Menu</div>
@@ -281,14 +280,14 @@ export function Sidebar({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 pb-8 [scrollbar-width:thin]">
               {sidebarBody}
             </div>
           </div>
         </div>
       ) : null}
 
-      <Card className="hidden w-full border-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_35%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] p-4 text-slate-50 shadow-soft lg:sticky lg:top-6 lg:block lg:max-h-[calc(100dvh-3rem)] lg:w-72 lg:self-start lg:overflow-y-auto">
+      <Card className="hidden w-full border border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_34%),radial-gradient(circle_at_70%_0%,rgba(59,130,246,0.10),transparent_24%),linear-gradient(180deg,#0f172a_0%,#020617_100%)] p-4 text-slate-50 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.9)] lg:sticky lg:top-6 lg:block lg:max-h-[calc(100dvh-3rem)] lg:w-72 lg:self-start lg:overflow-y-auto">
         {sidebarBody}
       </Card>
     </>

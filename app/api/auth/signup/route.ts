@@ -5,7 +5,7 @@ import { assertTrustedOrigin, jsonNoStore, normalizeCookieOptions } from "@/lib/
 import { getClientIp, verifyTurnstileToken } from "@/lib/security";
 
 const signupSchema = z.object({
-  fullName: z.string().trim().max(80, "Full name is too long.").optional(),
+  fullName: z.string().trim().min(2, "Full name is required.").max(80, "Full name is too long."),
   email: z.string().trim().email("Enter a valid email address.").transform((value) => value.toLowerCase()),
   password: z.string().min(6, "Password must be at least 6 characters."),
   captchaToken: z.string().trim().min(1, "Complete the security check and try again.")
@@ -34,10 +34,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const parsed = signupSchema.safeParse({
-      fullName:
-        typeof formData.get("fullName") === "string" && formData.get("fullName")?.toString().trim()
-          ? formData.get("fullName")
-          : undefined,
+      fullName: formData.get("fullName"),
       email: formData.get("email"),
       password: formData.get("password"),
       captchaToken: formData.get("captchaToken")

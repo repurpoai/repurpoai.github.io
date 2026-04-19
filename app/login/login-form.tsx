@@ -6,6 +6,7 @@ import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TurnstileWidget } from "@/components/turnstile-widget";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -53,7 +54,24 @@ export function LoginForm() {
     "border-white/10 bg-slate-950/70 text-slate-50 placeholder:text-slate-500 focus:border-emerald-400 focus:ring-emerald-500/20";
 
   return (
-    <form onSubmit={handleSubmit} method="post" action="/api/auth/login" encType="multipart/form-data" className="space-y-4">
+    <div className="space-y-5">
+      <GoogleAuthButton
+        actionLabel="Continue with Google"
+        className="h-11 w-full border-white/10 bg-white/5 text-slate-50 hover:bg-white/10"
+      />
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-white/10" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-transparent px-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+            or use email
+          </span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} method="post" action="/api/auth/login" encType="multipart/form-data" className="space-y-4">
       <div className="space-y-2">
         <label htmlFor="login-email" className="text-sm font-medium text-slate-200">
           Email
@@ -124,5 +142,6 @@ export function LoginForm() {
         Forgot password?
       </a>
     </form>
+    </div>
   );
 }

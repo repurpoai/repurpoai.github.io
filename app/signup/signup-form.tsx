@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TurnstileWidget } from "@/components/turnstile-widget";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 
 export function SignupForm() {
   const [pending, setPending] = useState(false);
@@ -49,7 +50,24 @@ export function SignupForm() {
     "border-white/10 bg-slate-950/70 text-slate-50 placeholder:text-slate-500 focus:border-emerald-400 focus:ring-emerald-500/20";
 
   return (
-    <form onSubmit={handleSubmit} method="post" action="/api/auth/signup" encType="multipart/form-data" className="space-y-4">
+    <div className="space-y-5">
+      <GoogleAuthButton
+        actionLabel="Sign up with Google"
+        className="h-11 w-full border-white/10 bg-white/5 text-slate-50 hover:bg-white/10"
+      />
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-white/10" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-transparent px-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+            or use email
+          </span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} method="post" action="/api/auth/signup" encType="multipart/form-data" className="space-y-4">
       <div className="space-y-2">
         <label htmlFor="signup-fullname" className="text-sm font-medium text-slate-200">
           Full name
@@ -59,7 +77,7 @@ export function SignupForm() {
           name="fullName"
           type="text"
           autoComplete="name"
-          placeholder="Optional"
+          placeholder="Your full name" required
           disabled={pending}
           className={fieldClassName}
         />
@@ -120,5 +138,6 @@ export function SignupForm() {
         )}
       </Button>
     </form>
+    </div>
   );
 }

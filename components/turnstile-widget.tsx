@@ -142,7 +142,9 @@ export function TurnstileWidget({
         }}
       />
       {!scriptReady ? <p className="text-sm text-slate-400">Loading security check…</p> : null}
-      <div ref={widgetContainerRef} />
+      <div className="flex justify-center overflow-hidden">
+        <div ref={widgetContainerRef} className="w-full max-w-[320px]" />
+      </div>
       <input type="hidden" name={name} value={token} readOnly />
       {renderError ? <p className="text-sm text-rose-300">{renderError}</p> : null}
     </div>
