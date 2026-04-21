@@ -62,6 +62,7 @@ export default async function HistoryDetailPage({
       "id, input_mode, tone, length_preset, source_url, source_title, source_text, selected_platforms, outputs, linkedin_post, twitter_thread, newsletter, created_at"
     )
     .eq("id", id)
+    .eq("user_id", viewer.userId)
     .maybeSingle();
 
   if (error) {

@@ -43,14 +43,41 @@ export async function getViewerContext(): Promise<ViewerContext | null> {
   const emailClaim = claimsData?.claims?.email;
   const email = typeof emailClaim === "string" ? emailClaim : null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "full_name, role, is_blocked, block_reason, blocked_until, tier, monthly_generation_limit, billing_status, billing_customer_id, billing_subscription_id, billing_current_period_end"
-    )
-    .eq("id", userId)
-    .maybeSingle();
+  const { startIso, endIso, label } = getMonthRange();
 
+  const [profileResult, generationResult, imageResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "full_name, role, is_blocked, block_reason, blocked_until, tier, monthly_generation_limit, billing_status, billing_customer_id, billing_subscription_id, billing_current_period_end"
+      )
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", startIso)
+      .lt("created_at", endIso),
+    supabase
+      .from("image_generations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", startIso)
+      .lt("created_at", endIso)
+  ]);
+
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message);
+  }
+  if (generationResult.error) {
+    throw new Error(generationResult.error.message);
+  }
+  if (imageResult.error) {
+    throw new Error(imageResult.error.message);
+  }
+
+  const profile = profileResult.data;
   const tier = normalizeTier(profile?.tier);
   const monthlyLimit = getMonthlyLimitForTier(
     tier,
@@ -60,22 +87,8 @@ export async function getViewerContext(): Promise<ViewerContext | null> {
   );
   const imageMonthlyLimit = getImageMonthlyLimitForTier(tier);
 
-  const { startIso, endIso, label } = getMonthRange();
-
-  const [{ count: generationCount }, { count: imageCount }] = await Promise.all([
-    supabase
-      .from("generations")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", startIso)
-      .lt("created_at", endIso),
-    supabase
-      .from("image_generations")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", startIso)
-      .lt("created_at", endIso)
-  ]);
+  const generationCount = generationResult.count;
+  const imageCount = imageResult.count;
 
   const usedThisMonth = generationCount ?? 0;
   const remainingThisMonth =

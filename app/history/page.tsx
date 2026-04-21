@@ -42,7 +42,7 @@ export default async function HistoryPage() {
   const { data, error } = await supabase
     .from("generations")
     .select("id, input_mode, tone, length_preset, source_url, source_title, created_at")
-    .order("created_at", { ascending: false });
+    .eq("user_id", viewer.userId).order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);

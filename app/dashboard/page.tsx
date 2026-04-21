@@ -1,22 +1,9 @@
-import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/sidebar";
+import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
-import { DashboardGenerator } from "@/app/dashboard/_components/dashboard-generator";
-import { getViewerContext } from "@/lib/viewer";
+import { DashboardContent } from "@/app/dashboard/_components/dashboard-content";
+import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 
-export default async function DashboardPage() {
-  const viewer = await getViewerContext();
-
-  if (!viewer) {
-    redirect("/login");
-  }
-
-  if (viewer.isBlocked) {
-    redirect("/blocked");
-  }
-
-  const upgradeHref = "/pricing";
-
+export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-6">
@@ -30,34 +17,10 @@ export default async function DashboardPage() {
           />
         </div>
       </div>
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 lg:flex-row lg:p-6">
-        <Sidebar
-          userName={viewer.userName}
-          userEmail={viewer.email}
-          tier={viewer.tier}
-          usedThisMonth={viewer.usedThisMonth}
-          monthlyLimit={viewer.monthlyLimit}
-          remainingThisMonth={viewer.remainingThisMonth}
-          imageUsedThisMonth={viewer.imageUsedThisMonth}
-          imageMonthlyLimit={viewer.imageMonthlyLimit}
-          imageRemainingThisMonth={viewer.imageRemainingThisMonth}
-          usageWindowLabel={viewer.usageWindowLabel}
-          isAdmin={viewer.isAdmin}
-        />
-        <section className="min-w-0 flex-1">
-          <DashboardGenerator
-            tier={viewer.tier}
-            usedThisMonth={viewer.usedThisMonth}
-            monthlyLimit={viewer.monthlyLimit}
-            remainingThisMonth={viewer.remainingThisMonth}
-            imageUsedThisMonth={viewer.imageUsedThisMonth}
-            imageMonthlyLimit={viewer.imageMonthlyLimit}
-            imageRemainingThisMonth={viewer.imageRemainingThisMonth}
-            usageWindowLabel={viewer.usageWindowLabel}
-            upgradeHref={upgradeHref}
-          />
-        </section>
-      </div>
+
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent />
+      </Suspense>
     </main>
   );
 }
