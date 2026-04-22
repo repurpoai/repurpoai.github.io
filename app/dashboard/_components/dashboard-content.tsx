@@ -33,6 +33,7 @@ export async function DashboardContent() {
       />
       <section className="min-w-0 flex-1">
         <DashboardGenerator
+          initialDraft={viewer.latestDraft}
           tier={viewer.tier}
           usedThisMonth={viewer.usedThisMonth}
           monthlyLimit={viewer.monthlyLimit}

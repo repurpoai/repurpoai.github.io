@@ -21,6 +21,12 @@ import { extractYouTubeTranscript } from "@/lib/youtube";
 import { logActivity } from "@/lib/activity";
 
 type InputMode = "link" | "text" | "youtube";
+type GenerationErrorCode = "EXTRACTION_FAILED" | null;
+
+type ManualFallback = {
+  inputMode: Exclude<InputMode, "text">;
+  sourceUrl: string;
+} | null;
 
 type UsageState = {
   tier: PlanTier;
@@ -55,6 +61,8 @@ function buildUsageState(
 export type GenerationFormState = {
   success: boolean;
   error: string | null;
+  errorCode?: GenerationErrorCode;
+  manualFallback?: ManualFallback;
   data: {
     inputMode: InputMode;
     tone: ContentTone;
@@ -155,13 +163,21 @@ export async function generateContentAction(
   let sourceText = "";
   let sourceMeta: Record<string, unknown> = {};
 
-  if (mode === "link") {
+  const manualText = sanitizeSourceText(String(formData.get("manualText") ?? ""));
+
+  if (manualText.trim()) {
+    sourceTitle = "Manual input";
+    sourceText = manualText;
+    sourceMeta = { kind: "manual" };
+  } else if (mode === "link") {
     const parsedUrl = urlSchema.safeParse(formData.get("url"));
 
     if (!parsedUrl.success) {
       return {
         success: false,
         error: parsedUrl.error.issues[0]?.message ?? "Enter a valid URL.",
+        errorCode: null,
+        manualFallback: null,
         data: null,
         usage: buildUsageState(viewer)
       };
@@ -176,6 +192,11 @@ export async function generateContentAction(
     } catch (error) {
       return {
         success: false,
+        errorCode: "EXTRACTION_FAILED",
+        manualFallback: {
+          inputMode: "link",
+          sourceUrl: typeof parsedUrl.data === "string" ? parsedUrl.data : ""
+        },
         error:
           error instanceof Error
             ? error.message
@@ -191,6 +212,8 @@ export async function generateContentAction(
       return {
         success: false,
         error: parsedUrl.error.issues[0]?.message ?? "Enter a valid YouTube URL.",
+        errorCode: null,
+        manualFallback: null,
         data: null,
         usage: buildUsageState(viewer)
       };
@@ -205,6 +228,11 @@ export async function generateContentAction(
     } catch (error) {
       return {
         success: false,
+        errorCode: "EXTRACTION_FAILED",
+        manualFallback: {
+          inputMode: "youtube",
+          sourceUrl: typeof parsedUrl.data === "string" ? parsedUrl.data : ""
+        },
         error:
           error instanceof Error
             ? error.message
@@ -220,6 +248,8 @@ export async function generateContentAction(
       return {
         success: false,
         error: parsedText.error.issues[0]?.message ?? "Invalid source text.",
+        errorCode: null,
+        manualFallback: null,
         data: null,
         usage: buildUsageState(viewer)
       };
@@ -303,6 +333,8 @@ export async function generateContentAction(
         error instanceof Error
           ? error.message
           : "Something went wrong while generating content.",
+      errorCode: null,
+      manualFallback: null,
       data: null,
       usage: buildUsageState(viewer)
     };

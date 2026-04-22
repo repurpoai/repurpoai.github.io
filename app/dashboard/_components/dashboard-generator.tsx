@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import {
   CheckCircle2,
   Crown,
@@ -17,7 +17,6 @@ import {
   PlaySquare,
   WandSparkles
 } from "lucide-react";
-import { generateContentAction, type GenerationFormState } from "@/app/dashboard/actions";
 import { CopyButton } from "@/components/copy-button";
 import { ExportButton } from "@/components/export-button";
 import { OpenInAppButton } from "@/components/open-in-app-button";
@@ -35,6 +34,8 @@ import {
   type LengthPreset,
   type PlanTier
 } from "@/lib/plans";
+import { type GenerationFormState } from "@/app/dashboard/actions";
+import { type ViewerDraft } from "@/lib/viewer";
 
 const TEXT_LIMIT = 5000;
 
@@ -53,11 +54,14 @@ const platformOptions = Object.entries(PLATFORM_META) as Array<
 const initialGenerationFormState: GenerationFormState = {
   success: false,
   error: null,
+  errorCode: null,
+  manualFallback: null,
   data: null,
   usage: null
 };
 
 type DashboardGeneratorProps = {
+  initialDraft?: ViewerDraft | null;
   tier: PlanTier;
   usedThisMonth: number;
   monthlyLimit: number | null;
@@ -77,8 +81,8 @@ const platformIcons: Record<ContentPlatform, ComponentType<{ className?: string 
   newsletter: Newspaper
 };
 
-
 export function DashboardGenerator({
+  initialDraft,
   tier,
   usedThisMonth,
   monthlyLimit,
@@ -101,6 +105,7 @@ export function DashboardGenerator({
   const [url, setUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [text, setText] = useState("");
+  const [manualText, setManualText] = useState("");
 
   const [imagePrompt, setImagePrompt] = useState("");
   const [imageAspectRatio, setImageAspectRatio] = useState<"1:1" | "3:4" | "4:3" | "9:16" | "16:9">("1:1");
@@ -108,18 +113,16 @@ export function DashboardGenerator({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
 
-  const [state, formAction, pending] = useActionState(
-    generateContentAction,
-    initialGenerationFormState
-  );
+  const [state, setState] = useState<GenerationFormState>(initialGenerationFormState);
+  const [pending, setPending] = useState(false);
   const [imageUsage, setImageUsage] = useState({
     imageUsedThisMonth,
     imageMonthlyLimit,
     imageRemainingThisMonth,
     usageWindowLabel
   });
-  const [draftHydrated, setDraftHydrated] = useState(false);
-  const storageKey = "repurpo-generation-draft-v2";
+  const [draftReady, setDraftReady] = useState(false);
+  const appliedInitialDraft = useRef(false);
 
   const usage = state.usage ?? {
     tier,
@@ -159,82 +162,297 @@ export function DashboardGenerator({
   }
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (appliedInitialDraft.current) return;
+    appliedInitialDraft.current = true;
+
+    if (!initialDraft) {
+      setDraftReady(true);
+      return;
+    }
+
+    const settings = initialDraft.settingsJson ?? {};
+    const draftMode = initialDraft.inputType;
+
+    if (draftMode === "link" || draftMode === "text" || draftMode === "youtube") {
+      setMode(draftMode);
+    }
+
+    if (draftMode === "link") {
+      setUrl(initialDraft.rawContent);
+    } else if (draftMode === "youtube") {
+      setYoutubeUrl(initialDraft.rawContent);
+    } else {
+      setText(initialDraft.rawContent);
+    }
+
+    const settingsMode = settings.mode;
+    if (settingsMode === "link" || settingsMode === "text" || settingsMode === "youtube") {
+      setMode(settingsMode);
+    }
+
+    const settingsTone = settings.tone;
+    if (settingsTone === "professional" || settingsTone === "casual" || settingsTone === "viral" || settingsTone === "authority") {
+      setTone(settingsTone);
+    }
+
+    const settingsLength = settings.lengthPreset;
+    if (settingsLength === "short" || settingsLength === "medium" || settingsLength === "long") {
+      setLengthPreset(settingsLength);
+    }
+
+    const settingsPlatforms = settings.selectedPlatforms;
+    if (Array.isArray(settingsPlatforms) && settingsPlatforms.length > 0) {
+      setSelectedPlatforms(
+        settingsPlatforms.filter((item): item is ContentPlatform =>
+          ["linkedin", "x", "instagram", "reddit", "newsletter"].includes(String(item))
+        )
+      );
+    }
+
+    if (typeof settings.url === "string") setUrl(settings.url);
+    if (typeof settings.youtubeUrl === "string") setYoutubeUrl(settings.youtubeUrl);
+    if (typeof settings.text === "string") setText(settings.text);
+    if (typeof settings.manualText === "string") setManualText(settings.manualText);
+    if (typeof settings.imagePrompt === "string") setImagePrompt(settings.imagePrompt);
+    if (settings.imageAspectRatio === "1:1" || settings.imageAspectRatio === "3:4" || settings.imageAspectRatio === "4:3" || settings.imageAspectRatio === "9:16" || settings.imageAspectRatio === "16:9") {
+      setImageAspectRatio(settings.imageAspectRatio);
+    }
+
+    setDraftReady(true);
+  }, [initialDraft]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !draftReady) return;
+
+    const timer = window.setTimeout(() => {
+      fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputType: mode,
+          rawContent: mode === "link" ? url : mode === "youtube" ? youtubeUrl : text,
+          settingsJson: {
+            mode,
+            tone,
+            lengthPreset,
+            selectedPlatforms,
+            url,
+            youtubeUrl,
+            text,
+            manualText,
+            imagePrompt,
+            imageAspectRatio
+          }
+        })
+      }).catch(() => {});
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [draftReady, imageAspectRatio, imagePrompt, lengthPreset, manualText, mode, selectedPlatforms, text, tone, url, youtubeUrl]);
+
+  async function handleGenerate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setImageError(null);
+    setState(initialGenerationFormState);
+
+    const currentUsage = usage;
 
     try {
-      const saved = window.localStorage.getItem(storageKey);
-      if (!saved) {
-        setDraftHydrated(true);
+      const response = await fetch("/api/generate-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          tone,
+          lengthPreset,
+          platforms: selectedPlatforms,
+          url,
+          youtubeUrl,
+          text,
+          manualText
+        })
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!response.ok && contentType.includes("application/json")) {
+        const payload = (await response.json()) as Partial<GenerationFormState> & {
+          error?: string;
+          errorCode?: GenerationFormState["errorCode"];
+          manualFallback?: GenerationFormState["manualFallback"];
+        };
+
+        setState({
+          success: false,
+          error: payload.error ?? "Generation failed.",
+          errorCode: payload.errorCode ?? null,
+          manualFallback: payload.manualFallback ?? null,
+          data: null,
+          usage: payload.usage ?? null
+        });
         return;
       }
 
-      const parsed = JSON.parse(saved) as {
-        mode?: "link" | "text" | "youtube";
-        tone?: ContentTone;
-        lengthPreset?: LengthPreset;
-        selectedPlatforms?: ContentPlatform[];
-        url?: string;
-        youtubeUrl?: string;
-        text?: string;
-        imagePrompt?: string;
-        imageAspectRatio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
+      if (!response.body) {
+        setState({
+          success: false,
+          error: "No response stream.",
+          errorCode: null,
+          manualFallback: null,
+          data: null,
+          usage: null
+        });
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      const patchOutput = (platform: ContentPlatform, value: string, replace = false) => {
+        setState((current) => {
+          if (!current.data) return current;
+          const previous = current.data.outputs[platform] ?? "";
+          const nextOutputs = {
+            ...current.data.outputs,
+            [platform]: replace ? value : `${previous}${value}`
+          };
+
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              outputs: nextOutputs
+            }
+          };
+        });
       };
 
-      if (parsed.mode === "link" || parsed.mode === "text" || parsed.mode === "youtube") {
-        setMode(parsed.mode);
+      const handleEvent = (event: string, payload: Record<string, unknown>) => {
+        if (event === "start") {
+          setState({
+            success: false,
+            error: null,
+            errorCode: null,
+            manualFallback: null,
+            data: {
+              inputMode: (payload.inputMode as "link" | "text" | "youtube") ?? mode,
+              tone,
+              lengthPreset,
+              sourceTitle: String(payload.sourceTitle ?? ""),
+              sourceUrl: typeof payload.sourceUrl === "string" ? payload.sourceUrl : null,
+              outputs: {},
+              imagePrompt: "",
+              selectedPlatforms: Array.isArray(payload.selectedPlatforms)
+                ? (payload.selectedPlatforms as ContentPlatform[])
+                : selectedPlatforms
+            },
+            usage: currentUsage
+          });
+          return;
+        }
+
+        if (event === "platform_chunk") {
+          const platform = payload.platform as ContentPlatform;
+          const chunk = String(payload.chunk ?? "");
+          if (platform) patchOutput(platform, chunk, false);
+          return;
+        }
+
+        if (event === "platform_done") {
+          const platform = payload.platform as ContentPlatform;
+          const finalText = String(payload.text ?? "");
+          if (platform) patchOutput(platform, finalText, true);
+          return;
+        }
+
+        if (event === "complete") {
+          const outputs = (payload.outputs as Partial<Record<ContentPlatform, string>>) ?? {};
+          const usagePayload = payload.usage as GenerationFormState["usage"] | undefined;
+          const completeImagePrompt = String(payload.imagePrompt ?? "");
+
+          setState({
+            success: true,
+            error: null,
+            errorCode: null,
+            manualFallback: null,
+            data: {
+              inputMode: (payload.inputMode as "link" | "text" | "youtube") ?? mode,
+              tone,
+              lengthPreset,
+              sourceTitle: String(payload.sourceTitle ?? ""),
+              sourceUrl: typeof payload.sourceUrl === "string" ? payload.sourceUrl : null,
+              outputs,
+              imagePrompt: completeImagePrompt,
+              selectedPlatforms
+            },
+            usage: usagePayload ?? currentUsage
+          });
+          setImagePrompt(completeImagePrompt);
+          if (usagePayload) {
+            setImageUsage({
+              imageUsedThisMonth: usagePayload.imageUsedThisMonth,
+              imageMonthlyLimit: usagePayload.imageMonthlyLimit,
+              imageRemainingThisMonth: usagePayload.imageRemainingThisMonth,
+              usageWindowLabel: usagePayload.usageWindowLabel
+            });
+          }
+          return;
+        }
+
+        if (event === "error") {
+          setState({
+            success: false,
+            error: String(payload.error ?? "Generation failed."),
+            errorCode: null,
+            manualFallback: null,
+            data: null,
+            usage: currentUsage
+          });
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let splitIndex = buffer.indexOf("\n\n");
+        while (splitIndex !== -1) {
+          const block = buffer.slice(0, splitIndex).trim();
+          buffer = buffer.slice(splitIndex + 2);
+          if (block) {
+            const lines = block.split("\n");
+            const eventLine = lines.find((line) => line.startsWith("event:"));
+            const dataLine = lines.find((line) => line.startsWith("data:"));
+            const event = eventLine?.slice(6).trim();
+            const raw = dataLine?.slice(5).trim();
+
+            if (event && raw) {
+              try {
+                handleEvent(event, JSON.parse(raw) as Record<string, unknown>);
+              } catch {
+                // ignore malformed stream chunks
+              }
+            }
+          }
+          splitIndex = buffer.indexOf("\n\n");
+        }
       }
-      if (parsed.tone) setTone(parsed.tone);
-      if (parsed.lengthPreset) setLengthPreset(parsed.lengthPreset);
-      if (Array.isArray(parsed.selectedPlatforms) && parsed.selectedPlatforms.length > 0) {
-        setSelectedPlatforms(parsed.selectedPlatforms);
-      }
-      if (typeof parsed.url === "string") setUrl(parsed.url);
-      if (typeof parsed.youtubeUrl === "string") setYoutubeUrl(parsed.youtubeUrl);
-      if (typeof parsed.text === "string") setText(parsed.text);
-      if (typeof parsed.imagePrompt === "string") setImagePrompt(parsed.imagePrompt);
-      if (parsed.imageAspectRatio) setImageAspectRatio(parsed.imageAspectRatio);
-    } catch {
-      // ignore bad drafts
+    } catch (error) {
+      setState({
+        success: false,
+        error: error instanceof Error ? error.message : "Generation failed.",
+        errorCode: null,
+        manualFallback: null,
+        data: null,
+        usage: currentUsage
+      });
     } finally {
-      setDraftHydrated(true);
+      setPending(false);
     }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !draftHydrated) return;
-
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        mode,
-        tone,
-        lengthPreset,
-        selectedPlatforms,
-        url,
-        youtubeUrl,
-        text,
-        imagePrompt,
-        imageAspectRatio
-      })
-    );
-  }, [draftHydrated, imageAspectRatio, imagePrompt, lengthPreset, mode, selectedPlatforms, text, tone, url, youtubeUrl]);
-
-  useEffect(() => {
-    if (!state.data) return;
-
-    setImagePrompt(state.data.imagePrompt);
-    setImageUsage({
-      imageUsedThisMonth: usage.imageUsedThisMonth,
-      imageMonthlyLimit: usage.imageMonthlyLimit,
-      imageRemainingThisMonth: usage.imageRemainingThisMonth,
-      usageWindowLabel: usage.usageWindowLabel
-    });
-    setImageUrl(null);
-    setImageError(null);
-  }, [state.data, usage.imageMonthlyLimit, usage.imageRemainingThisMonth, usage.imageUsedThisMonth, usage.usageWindowLabel]);
-
-
-
+  }
   function handleDownloadImage() {
     if (!imageUrl) return;
 
@@ -379,7 +597,7 @@ export function DashboardGenerator({
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <form action={formAction} className="space-y-5">
+          <form onSubmit={handleGenerate} className="space-y-5">
             <input type="hidden" name="mode" value={mode} />
             <input type="hidden" name="tone" value={tone} />
             <input type="hidden" name="lengthPreset" value={lengthPreset} />
@@ -569,6 +787,23 @@ export function DashboardGenerator({
             {state.error ? (
               <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
                 {state.error}
+              </div>
+            ) : null}
+
+            {state.errorCode === "EXTRACTION_FAILED" && mode !== "text" ? (
+              <div className="space-y-2">
+                <label htmlFor="manual-text" className="text-sm font-medium text-slate-300">
+                  Manual Input
+                </label>
+                <Textarea
+                  id="manual-text"
+                  name="manualText"
+                  placeholder="Paste the article text or transcript here, then try again."
+                  value={manualText}
+                  onChange={(event) => setManualText(event.target.value)}
+                  disabled={pending}
+                  rows={10}
+                />
               </div>
             ) : null}
 

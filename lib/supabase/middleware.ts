@@ -4,6 +4,18 @@ import { applyPrivateNoStore, normalizeCookieOptions } from "@/lib/http-security
 import { getAppSettings } from "@/lib/app-settings";
 import { isBlockActive } from "@/lib/account-status";
 
+type AppMetadata = {
+  is_admin?: boolean;
+  is_blocked?: boolean;
+  role?: string;
+  block_reason?: string | null;
+  blocked_until?: string | null;
+};
+
+function readAppMetadata(session: any): AppMetadata {
+  return (session?.user?.app_metadata ?? {}) as AppMetadata;
+}
+
 function copyCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((cookie) => {
     to.cookies.set({
@@ -102,9 +114,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub ?? null;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  const userId = session?.user?.id ?? null;
   const isAuthenticated = Boolean(userId);
+  const appMetadata = readAppMetadata(session);
+
+  const isAdmin = appMetadata.is_admin === true || appMetadata.role === "admin";
+  const isBlocked = isBlockActive(appMetadata.is_blocked, appMetadata.blocked_until);
+  const blockReason = typeof appMetadata.block_reason === "string" ? appMetadata.block_reason : null;
 
   const appSettings = await getAppSettings();
   const maintenanceActive = Boolean(appSettings.maintenance_mode);
@@ -125,26 +143,6 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/dashboard") || pathname.startsWith("/history") || pathname.startsWith("/profile");
   const isSensitiveApiRoute =
     pathname.startsWith("/api/") && !isApiAllowlisted(pathname) && !pathname.startsWith("/api/auth/login");
-
-  let isAdmin = false;
-  let isBlocked = false;
-  let blockReason: string | null = null;
-
-  const needsProfile =
-    isAuthenticated &&
-    (maintenanceActive || isAdminRoute || isProtectedRoute || isSensitiveApiRoute || isAuthRoute);
-
-  if (needsProfile) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, is_blocked, block_reason, blocked_until")
-      .eq("id", userId)
-      .maybeSingle();
-
-    isAdmin = profile?.role === "admin";
-    isBlocked = isBlockActive(profile?.is_blocked, profile?.blocked_until);
-    blockReason = typeof profile?.block_reason === "string" ? profile.block_reason : null;
-  }
 
   if (isBlocked && (isProtectedRoute || isAdminRoute || isSensitiveApiRoute) && !isBlockedRoute) {
     if (isApiRoute) {

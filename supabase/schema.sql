@@ -62,6 +62,16 @@ create table if not exists public.image_generations (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.drafts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade unique,
+  input_type text not null check (input_type in ('link', 'text', 'youtube')),
+  raw_content text not null default '',
+  settings_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 
 
 create table if not exists public.auth_rate_limits (
@@ -153,6 +163,31 @@ begin
 end;
 $$;
 
+create or replace function public.sync_profile_flags_to_auth_metadata()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  meta jsonb;
+begin
+  meta := coalesce((select raw_app_meta_data from auth.users where id = new.id), '{}'::jsonb);
+
+  meta := jsonb_set(meta, '{is_admin}', to_jsonb(new.role = 'admin'), true);
+  meta := jsonb_set(meta, '{is_blocked}', to_jsonb(coalesce(new.is_blocked, false)), true);
+  meta := jsonb_set(meta, '{role}', to_jsonb(coalesce(new.role, 'user')), true);
+  meta := jsonb_set(meta, '{block_reason}', coalesce(to_jsonb(new.block_reason), 'null'::jsonb), true);
+  meta := jsonb_set(meta, '{blocked_until}', coalesce(to_jsonb(new.blocked_until), 'null'::jsonb), true);
+
+  update auth.users
+  set raw_app_meta_data = meta
+  where id = new.id;
+
+  return new;
+end;
+$$;
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
@@ -196,6 +231,12 @@ before update on public.profiles
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists sync_profile_flags_to_auth_metadata on public.profiles;
+create trigger sync_profile_flags_to_auth_metadata
+after insert or update of role, is_blocked, block_reason, blocked_until on public.profiles
+for each row
+execute function public.sync_profile_flags_to_auth_metadata();
+
 
 
 drop trigger if exists set_generations_updated_at on public.generations;
@@ -210,6 +251,12 @@ before update on public.image_generations
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists set_drafts_updated_at on public.drafts;
+create trigger set_drafts_updated_at
+before update on public.drafts
+for each row
+execute function public.set_updated_at();
+
 drop trigger if exists set_auth_rate_limits_updated_at on public.auth_rate_limits;
 create trigger set_auth_rate_limits_updated_at
 before update on public.auth_rate_limits
@@ -219,6 +266,7 @@ execute function public.set_updated_at();
 alter table public.profiles enable row level security;
 alter table public.generations enable row level security;
 alter table public.image_generations enable row level security;
+alter table public.drafts enable row level security;
 alter table public.billing_webhook_events enable row level security;
 alter table public.user_logs enable row level security;
 
@@ -298,6 +346,35 @@ with check (auth.uid() = user_id);
 drop policy if exists "image_generations_delete_own" on public.image_generations;
 create policy "image_generations_delete_own"
 on public.image_generations
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "drafts_select_own" on public.drafts;
+create policy "drafts_select_own"
+on public.drafts
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "drafts_insert_own" on public.drafts;
+create policy "drafts_insert_own"
+on public.drafts
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "drafts_update_own" on public.drafts;
+create policy "drafts_update_own"
+on public.drafts
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "drafts_delete_own" on public.drafts;
+create policy "drafts_delete_own"
+on public.drafts
 for delete
 to authenticated
 using (auth.uid() = user_id);
