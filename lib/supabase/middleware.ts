@@ -36,8 +36,12 @@ function readAppMetadata(source: unknown): AppMetadata {
 
 async function loadAdminFallbackMetadata(
   supabase: ReturnType<typeof createServerClient>,
-  userId: string
+  userId: string | null
 ): Promise<Pick<AppMetadata, "role" | "is_blocked" | "block_reason" | "blocked_until">> {
+  if (!userId) {
+    return {};
+  }
+
   const { data } = await supabase
     .from("profiles")
     .select("role, is_blocked, block_reason, blocked_until")

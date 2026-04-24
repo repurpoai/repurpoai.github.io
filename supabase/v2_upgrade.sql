@@ -303,21 +303,26 @@ set raw_app_meta_data = jsonb_set(
   jsonb_set(
     jsonb_set(
       jsonb_set(
-        coalesce(u.raw_app_meta_data, '{}'::jsonb),
-        '{is_admin}',
-        to_jsonb(coalesce(p.role = 'admin', false)),
+        jsonb_set(
+          coalesce(u.raw_app_meta_data, '{}'::jsonb),
+          '{is_admin}',
+          to_jsonb(coalesce(p.role = 'admin', false)),
+          true
+        ),
+        '{is_blocked}',
+        to_jsonb(coalesce(p.is_blocked, false)),
         true
       ),
-      '{is_blocked}',
-      to_jsonb(coalesce(p.is_blocked, false)),
+      '{role}',
+      to_jsonb(coalesce(p.role, 'user')),
       true
     ),
-    '{role}',
-    to_jsonb(coalesce(p.role, 'user')),
+    '{block_reason}',
+    coalesce(to_jsonb(p.block_reason), 'null'::jsonb),
     true
   ),
-  '{block_reason}',
-  coalesce(to_jsonb(p.block_reason), 'null'::jsonb),
+  '{blocked_until}',
+  coalesce(to_jsonb(p.blocked_until), 'null'::jsonb),
   true
 )
 from public.profiles p
