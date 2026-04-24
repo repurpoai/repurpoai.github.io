@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-slate-200;
+  :root {
+    color-scheme: dark;
   }
 
   html {
@@ -13,11 +13,89 @@
 
   body {
     @apply min-h-screen bg-slate-950 text-slate-100 antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
+
+  *,
+  ::before,
+  ::after {
+    @apply border-slate-200;
+  }
+
+  ::selection {
+    @apply bg-emerald-400/30 text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950;
+  }
+
+  a {
+    @apply transition-colors;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgb(15 23 42);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(71 85 105);
+    border-radius: 9999px;
+    border: 2px solid rgb(15 23 42);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(100 116 139);
+  }
+
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

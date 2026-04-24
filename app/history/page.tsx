@@ -65,6 +65,7 @@ export default async function HistoryPage() {
           imageMonthlyLimit={viewer.imageMonthlyLimit}
           imageRemainingThisMonth={viewer.imageRemainingThisMonth}
           usageWindowLabel={viewer.usageWindowLabel}
+        isAdmin={viewer.isAdmin}
         />
 
         <section className="min-w-0 flex-1 space-y-6">

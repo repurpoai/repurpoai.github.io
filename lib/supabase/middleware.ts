@@ -18,8 +18,19 @@ type SessionLike = {
   } | null;
 } | null;
 
-function readAppMetadata(session: SessionLike): AppMetadata {
-  return (session?.user?.app_metadata ?? {}) as AppMetadata;
+type ClaimsLike = {
+  claims?: {
+    app_metadata?: unknown;
+    user_metadata?: unknown;
+  };
+} | null;
+
+function readAppMetadata(source: SessionLike | ClaimsLike | null): AppMetadata {
+  if (!source) return {};
+  if ("claims" in source && source.claims) {
+    return ((source.claims.app_metadata ?? source.claims.user_metadata ?? {}) as AppMetadata) ?? {};
+  }
+  return ((source.user?.app_metadata ?? {}) as AppMetadata) ?? {};
 }
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -120,11 +131,30 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const { data: sessionData } = await supabase.auth.getSession();
+  const [{ data: sessionData }, { data: claimsData }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getClaims()
+  ]);
+
   const session = sessionData.session;
   const userId = session?.user?.id ?? null;
   const isAuthenticated = Boolean(userId);
-  const appMetadata = readAppMetadata(session);
+  let appMetadata = {
+    ...readAppMetadata(session),
+    ...readAppMetadata(claimsData)
+  };
+
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    const { data: userData } = await supabase.auth.getUser();
+    appMetadata = {
+      ...appMetadata,
+      ...readAppMetadata({
+        user: {
+          app_metadata: userData.user?.app_metadata
+        }
+      })
+    };
+  }
 
   const isAdmin = appMetadata.is_admin === true || appMetadata.role === "admin";
   const isBlocked = isBlockActive(appMetadata.is_blocked, appMetadata.blocked_until);
