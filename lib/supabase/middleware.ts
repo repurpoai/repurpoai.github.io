@@ -12,25 +12,26 @@ type AppMetadata = {
   blocked_until?: string | null;
 };
 
-type SessionLike = {
-  user?: {
-    app_metadata?: unknown;
-  } | null;
-} | null;
-
-type ClaimsLike = {
-  claims?: {
-    app_metadata?: unknown;
-    user_metadata?: unknown;
-  };
-} | null;
-
-function readAppMetadata(source: SessionLike | ClaimsLike | null): AppMetadata {
-  if (!source) return {};
-  if ("claims" in source && source.claims) {
-    return ((source.claims.app_metadata ?? source.claims.user_metadata ?? {}) as AppMetadata) ?? {};
+function readAppMetadata(source: unknown): AppMetadata {
+  if (!source || typeof source !== "object") {
+    return {};
   }
-  return ((source.user?.app_metadata ?? {}) as AppMetadata) ?? {};
+
+  const record = source as Record<string, unknown>;
+  const claims = record.claims as
+    | { app_metadata?: unknown; user_metadata?: unknown }
+    | undefined;
+
+  if (claims && typeof claims === "object") {
+    return ((claims.app_metadata ?? claims.user_metadata ?? {}) as AppMetadata) ?? {};
+  }
+
+  const user = record.user as { app_metadata?: unknown } | undefined;
+  if (user && typeof user === "object") {
+    return ((user.app_metadata ?? {}) as AppMetadata) ?? {};
+  }
+
+  return {};
 }
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -137,24 +138,12 @@ export async function updateSession(request: NextRequest) {
   ]);
 
   const session = sessionData.session;
-  const userId = session?.user?.id ?? null;
+  const userId = session?.user?.id ?? claimsData?.claims?.sub ?? null;
   const isAuthenticated = Boolean(userId);
-  let appMetadata = {
+  const appMetadata = {
     ...readAppMetadata(session),
     ...readAppMetadata(claimsData)
   };
-
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    const { data: userData } = await supabase.auth.getUser();
-    appMetadata = {
-      ...appMetadata,
-      ...readAppMetadata({
-        user: {
-          app_metadata: userData.user?.app_metadata
-        }
-      })
-    };
-  }
 
   const isAdmin = appMetadata.is_admin === true || appMetadata.role === "admin";
   const isBlocked = isBlockActive(appMetadata.is_blocked, appMetadata.blocked_until);
