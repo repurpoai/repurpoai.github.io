@@ -286,20 +286,33 @@ export function DashboardGenerator({
 
       const contentType = response.headers.get("content-type") ?? "";
 
-      if (!response.ok && contentType.includes("application/json")) {
-        const payload = (await response.json()) as Partial<GenerationFormState> & {
-          error?: string;
-          errorCode?: GenerationFormState["errorCode"];
-          manualFallback?: GenerationFormState["manualFallback"];
-        };
+      if (!response.ok) {
+        if (contentType.includes("application/json")) {
+          const payload = (await response.json()) as Partial<GenerationFormState> & {
+            error?: string;
+            errorCode?: GenerationFormState["errorCode"];
+            manualFallback?: GenerationFormState["manualFallback"];
+          };
 
+          setState({
+            success: false,
+            error: payload.error ?? "Generation failed.",
+            errorCode: payload.errorCode ?? null,
+            manualFallback: payload.manualFallback ?? null,
+            data: null,
+            usage: payload.usage ?? null
+          });
+          return;
+        }
+
+        const text = await response.text().catch(() => "");
         setState({
           success: false,
-          error: payload.error ?? "Generation failed.",
-          errorCode: payload.errorCode ?? null,
-          manualFallback: payload.manualFallback ?? null,
+          error: text.trim() || `Generation failed with status ${response.status}.`,
+          errorCode: null,
+          manualFallback: null,
           data: null,
-          usage: payload.usage ?? null
+          usage: null
         });
         return;
       }

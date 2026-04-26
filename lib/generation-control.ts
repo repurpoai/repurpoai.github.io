@@ -61,11 +61,15 @@ function isMissingTableError(error: unknown) {
 
   return (
     record?.code === "42P01" ||
+    record?.code === "PGRST202" ||
     haystack.includes('relation "public.generation_rate_limits" does not exist') ||
     haystack.includes('relation "public.generation_slots" does not exist') ||
     haystack.includes('relation "generation_rate_limits" does not exist') ||
     haystack.includes('relation "generation_slots" does not exist') ||
-    haystack.includes("could not find the table")
+    haystack.includes("could not find the table") ||
+    haystack.includes("could not find the function") ||
+    haystack.includes("schema cache") ||
+    haystack.includes("rpc")
   );
 }
 

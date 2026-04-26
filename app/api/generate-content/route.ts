@@ -176,7 +176,21 @@ export async function POST(request: NextRequest) {
   }
 
   const queueOwnerKey = randomUUID();
-  const slotLease = await acquireGenerationSlot(queueOwnerKey, viewer.userId);
+  let slotLease: Awaited<ReturnType<typeof acquireGenerationSlot>>;
+  try {
+    slotLease = await acquireGenerationSlot(queueOwnerKey, viewer.userId);
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "The content engine is unavailable right now. Please try again."
+      },
+      { status: 503 }
+    );
+  }
+
   if (!slotLease) {
     return Response.json(
       { error: "The content engine is busy right now. Please try again in a moment." },
